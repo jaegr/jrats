@@ -253,74 +253,82 @@ class Gas_source(Weapons):
         self.level = level
         self.gas_timer = pygame.time.get_ticks() #Kollar när ett nytt gasmoln ska skapas
         self.depth = 1 #Hur långt ifrån gaskällan vi är (t.ex. 2 * 32 pixlar)
-        self.expand_directions = deque(['Up', 'Right', 'Down', 'Left', 'Up Left', 'Up Right', 'Down Right', 'Down Left'])
+        #self.expand_directions = deque(['Up', 'Right', 'Down', 'Left', 'Up Left', 'Up Right', 'Down Right', 'Down Left'])
+        self.expand_directions = deque(['Up', 'Right', 'Down', 'Left'])
         print self.expand_directions
         self.start_x = x
         self.start_y = y
         self.index = 1
+        self.initial_gas = True
+        self.start_removing = False
         self.basic_directions = {'Up' : (0, 32), 'Right' : (32, 0), 'Down' : (0, -32), 'Left' : (-32 , 0)}
         self.directions = {'Up' : (0, 32), 'Right' : (32, 0), 'Down' : (0, -32), 'Left' : (-32 , 0), 'Up Right' : (32, 32), 'Up Left' : (-32, 32), 'Down Right' : (32, -32), 'Down Left' : (-32, -32)}
         self.gas_clouds = []
+        self.play_sound()
         #        print dir(self.gas_clouds[0])
       #  self.game.weapon_sprites.add(Gas(self.game, self.start_x, self.start_y))
 
     def add_gas(self):
         done = False
-        while not done and self.depth <= 20:
-#            print self.expand_directions[0], self.depth
-            x = self.start_x + (self.depth * self.directions[self.expand_directions[0]][0])
-            y = self.start_y + (self.depth * self.directions[self.expand_directions[0]][1])
-            self.expand_directions.rotate(-1)
-#            print x, y
-            if self.expand_directions[0] == 'Up':
-#                print self.expand_directions[0], self.depth
-                self.depth += 1
-            if not self.level.is_wall(x / tile_size, y / tile_size) and 0 < x < self.game.board_width and 0 < y < self.game.board_height:
-                for i in self.basic_directions:
-                    cmp_x = x + self.directions[i][0]
-                    cmp_y = y + self.directions[i][1]
-                    if self.rect.x == cmp_x and self.rect.y == cmp_y:
-                        self.gas_clouds.append(Gas(self.game, x, y))
-                        self.game.weapon_sprites.add(self.gas_clouds[-1])
-                        return
+        if self.initial_gas:
+            while not done:
+                x = self.start_x + self.directions[self.expand_directions[0]][0]
+                y = self.start_y + self.directions[self.expand_directions[0]][1]
+                if not self.level.is_wall(x / tile_size, y / tile_size):
+                    self.gas_clouds.append(Gas(self.game, x, y, self, self.level))
+                    self.game.weapon_sprites.add(self.gas_clouds[-1])
+                    done = True
+                self.expand_directions.rotate(-1)
+                if self.expand_directions[0] == 'Up':
+                    self.initial_gas = False
+        else:
+            for cloud in self.gas_clouds:
+                available_neighbor_tiles = cloud.check_neighbors()
                 for cloud in self.gas_clouds:
-                    for i in self.basic_directions:
-                        cmp_x = x + self.directions[i][0]
-                        cmp_y = y + self.directions[i][1]
-                        if (cloud.rect.x == cmp_x and cloud.rect.y == cmp_y) or (self.rect.x == cmp_x and self.rect.y == cmp_y):
-                            self.gas_clouds.append(Gas(self.game, x, y))
-                            self.game.weapon_sprites.add(self.gas_clouds[-1])
-                            return
-                        else:
-                            pass
-#            print done, self.depth
-#                            print i, self.directions[i], cmp_x, cmp_y, cloud.rect.x, cloud.rect.y, self.depth, x, y
-#        gas_index = range(len(self.gas_clouds))
-#        random.shuffle(self.expand_directions)
-#        random.shuffle(gas_index)
-#        if not len(self.gas_clouds): #Första gången, när det inte finns några gasmoln
-#            x =  self.rect.x + self.directions[self.expand_directions[0]][0]
-#            y = self.rect.y + self.directions[self.expand_directions[0]][1]
-#            self.gas_clouds.append(Gas(self.game, x, y))
-#            self.game.weapon_sprites.add(self.gas_clouds[-1])
-#        for i in gas_index:
-#            for direction in self.expand_directions:
-#                gas_cloud = self.gas_clouds[i]
-#                if not self.level.is_wall((gas_cloud.rect.x + self.directions[direction][0]) / 32, (gas_cloud.rect.y + self.directions[direction][1]) / 32):
-#                    print 'not wall'
-#                    self.gas_clouds.append(Gas(self.game, self.rect.x, self.rect.y))
-#                    self.game.weapon_sprites.add(self.gas_clouds[-1])
-#                    return
+                    if (cloud.rect.x, cloud.rect.y) in available_neighbor_tiles:
+                        available_neighbor_tiles.remove((cloud.rect.x, cloud.rect.y))
+                if (self.rect.x, self.rect.y) in available_neighbor_tiles:
+                    available_neighbor_tiles.remove((self.rect.x, self.rect.y))
+                if available_neighbor_tiles:
+                    x, y = random.choice(available_neighbor_tiles)
+                    self.gas_clouds.append(Gas(self.game, x, y, self, self.level))
+                    self.game.weapon_sprites.add(self.gas_clouds[-1])
+                    #self.expand_directions.rotate(-1)
+                    done = True
+                    break
 
     def update(self):
-        if pygame.time.get_ticks() - self.gas_timer > 100 and len(self.gas_clouds) < 100:
+        if len(self.gas_clouds) > 10:
+            self.start_removing = True
+        elif len(self.gas_clouds) == 0 and self.start_removing:
+            self.delete()
+        if pygame.time.get_ticks() - self.gas_timer > 100 and not self.start_removing:
             self.add_gas()
+            self.gas_timer = pygame.time.get_ticks()
+        elif self.start_removing and pygame.time.get_ticks() - self.gas_timer > 100:
+            gas_cloud = random.choice(self.gas_clouds)
+            gas_cloud.delete()
+            self.gas_clouds.remove(gas_cloud)
             self.gas_timer = pygame.time.get_ticks()
 
 
+
 class Gas(Weapons): #Ej implementerat än
-    def __init__(self, game, x, y):
+    def __init__(self, game, x, y, gas_source, level):
         Weapons.__init__(self, game, x, y, 'Gas')
+        self.gas_source = gas_source
+        self.level = level
+        self.directions = {'Up' : (0, 32), 'Right' : (32, 0), 'Down' : (0, -32), 'Left' : (-32 , 0)}
+
+    def check_neighbors(self):
+        available_neighbor_tiles = []
+        for direction in self.directions.keys():
+            x = self.rect.x + self.directions[direction][0]
+            y = self.rect.y + self.directions[direction][1]
+            if not self.level.is_wall(x / 32, y / 32):
+                available_neighbor_tiles.append((x, y))
+        return available_neighbor_tiles
+
 
     def handle_collision(self, rat):
         rat.delete()
@@ -499,6 +507,7 @@ class Game(object):
             self.sounds['Change gender'] = pygame.mixer.Sound(os.path.join('data', 'gender.wav'))
             self.sounds['Poison'] = pygame.mixer.Sound(os.path.join('data', 'poison.wav'))
             self.sounds['Terminator'] = pygame.mixer.Sound(os.path.join('data', 'terminator.wav'))
+            self.sounds['Gas source'] = pygame.mixer.Sound(os.path.join('data', 'gas.wav'))
         except pygame.error as e:
             print e
          #   quit()
@@ -550,10 +559,11 @@ class Game(object):
         for sprite in self.weapon_sprites: #För varje vapen
             sprite.update() #Kör deras update-metod
             if sprite.name == 'Bomb' and sprite.exploded: #Om vapnet är en bomb, och det har exploderat
+                self.play_sound('Explosion')
                 explosion_rects = self.leveltest.find_lanes(sprite.rect) #Hitta alla rutor som explosionen kan expandera till
                 for explosion_rect in explosion_rects:
                     self.weapon_sprites.add(Explosion(self, explosion_rect.x, explosion_rect.y)) #Skapa explosionssprites på dessa rutor
-                self.play_sound('Explosion')
+
 
     def draw_ui(self): #Ritar ut användarinterfacet
         self.male_ui_rect.h = -self.male_count * 5 #Höjden på mätaren som visar antal manliga råttor får höjden: antal manliga råttor * 5
