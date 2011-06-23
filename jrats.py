@@ -155,7 +155,7 @@ class Tile(pygame.sprite.DirtySprite):
         self.tile = tile
         self.name = self.get_name_from_tile()
      #   self.image = self.game.graphics[self.name]
-     #   self.rect = self.image.get_rect()
+     #   self.rect = self.image.get_rect() 
 
     def get_name_from_tile(self):
         if self.tile == '#':
