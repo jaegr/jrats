@@ -425,13 +425,31 @@ class Explosion(Weapons):
 class main_menu(object):
     def __init__(self):
         self.menu_font = pygame.font.Font(None, 40)
+    #    self.help_font = pygame.font.Font(None, 15)
+#        self.help_text = '''Råttorna invaderar! Döda dem innan de tar över världen!\n\r
+#                            Stoppskylt - blockerar gångar. Försvinner efter fem träffar.\n\r
+#                            Råttgift - tillräckligt för att döda en råtta.\n\r
+#                            Robotråtta - dödar fem råttor innan den dör själv. Påverkas av vapen precis som vanliga råttor.\n\r
+#                            Bomb - sprängs efter fem sekunder i en stor explosion. Förstör allt i sin väg, inklusive vapen.\n\r
+#                            Könsbyte - byter kön på råttor, och förvandlar robotråttor till vanliga råttor.\n\r
+#                            Strålning - gör råttor inom dess radie sterila, så att de inte kan para sig.\n\r
+#                            Giftavfall - släpper ut giftig gas som dödar alla som inandas den.
+#                            '''
+#        self.help_item = {'text' : self.help_text, 'x' : 100, 'y': 100}
         self.menu_text = {'Play' : {'text' : 'Play game', 'x' : 600, 'y' : 100},
                           'Highscore' : {'text' : 'Highscore', 'x' : 600, 'y' : 150},
                           'Exit' : {'text' : 'Exit', 'x' : 600, 'y' : 200}}
+
         self.done = False
+        self.image = pygame.image.load(os.path.join('data','main.png')).convert_alpha()
+        self.rect = self.image.get_rect()
         self.initialize_text()
 
     def initialize_text(self):
+#        render = self.help_font.render(self.help_text, True, black)
+#        render_rect = render.get_rect(x = self.help_item['x'], y = self.help_item['y'])
+#        self.help_item['render'] = render
+#        self.help_item['rect'] = render_rect
         for menu_item in self.menu_text.values():
             render = self.menu_font.render(menu_item['text'], True, white)
             render_rect = render.get_rect(x = menu_item['x'], y = menu_item['y'])
@@ -446,8 +464,10 @@ class main_menu(object):
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     self.handle_mouse(event.pos[0], event.pos[1])
             screen.fill(black)
+            screen.blit(self.image, self.rect)
             for menu_item in self.menu_text.values():
                 screen.blit(menu_item['render'], menu_item['rect'])
+      #      screen.blit(self.help_item['render'], self.help_item['rect'])
             pygame.display.flip()
 
     def handle_mouse(self, mouse_x, mouse_y):
@@ -530,22 +550,22 @@ class Game(object):
             self.done == True
 
     def initialize_graphics(self): #Ladda in all grafik
-        self.graphics['Stop sign'] = pygame.image.load(os.path.join('data','stop2.png')).convert_alpha()
-        self.graphics['Poison'] = pygame.image.load(os.path.join('data', 'poison2.png')).convert_alpha()
+        self.graphics['Stop sign'] = pygame.image.load(os.path.join('data','stop.png')).convert_alpha()
+        self.graphics['Poison'] = pygame.image.load(os.path.join('data', 'poison.png')).convert_alpha()
         self.graphics['Male rat'] = pygame.image.load(os.path.join('data', 'male.png')).convert_alpha()
         self.graphics['Female rat'] = pygame.image.load(os.path.join('data', 'female.png')).convert_alpha()
         self.graphics['Baby rat'] = pygame.image.load(os.path.join('data', 'baby_rat.png')).convert_alpha()
         self.graphics['Terminator'] = pygame.image.load(os.path.join('data', 'terminator.png')).convert_alpha()
-        self.graphics['Flower'] = pygame.image.load(os.path.join('data', 'flower2.png')).convert_alpha()
-        self.graphics['Bomb'] = pygame.image.load(os.path.join('data', 'bomb2.png')).convert_alpha()
-        self.graphics['Explosion'] = pygame.image.load(os.path.join('data', 'explosion2.png')).convert_alpha()
+        self.graphics['Flower'] = pygame.image.load(os.path.join('data', 'flower.png')).convert_alpha()
+        self.graphics['Bomb'] = pygame.image.load(os.path.join('data', 'bomb.png')).convert_alpha()
+        self.graphics['Explosion'] = pygame.image.load(os.path.join('data', 'explosion.png')).convert_alpha()
         self.graphics['Path'] = pygame.image.load(os.path.join('data', 'dirt.png')).convert_alpha()
-        self.graphics['Grass'] = pygame.image.load(os.path.join('data', 'grass9.png')).convert_alpha()
+        self.graphics['Grass'] = pygame.image.load(os.path.join('data', 'grass.png')).convert_alpha()
         self.graphics['Change gender male'] = pygame.image.load(os.path.join('data', 'gender_male.png')).convert_alpha()
         self.graphics['Change gender female'] = pygame.image.load(os.path.join('data', 'gender_female.png')).convert_alpha()
         self.graphics['Nuke'] = pygame.image.load(os.path.join('data', 'nuke.png')).convert_alpha()
-        self.graphics['Radiation'] = pygame.image.load(os.path.join('data', 'radiation2.png')).convert_alpha()
-        self.graphics['Gas'] = pygame.image.load(os.path.join('data', 'gas2.png')).convert_alpha()
+        self.graphics['Radiation'] = pygame.image.load(os.path.join('data', 'radiation.png')).convert_alpha()
+        self.graphics['Gas'] = pygame.image.load(os.path.join('data', 'gas.png')).convert_alpha()
         self.graphics['Gas source'] = pygame.image.load(os.path.join('data', 'gas_source.png')).convert_alpha()
          #   self.graphics['Restart'] = pygame.image.load(os.path.join('data', 'restart.png')).convert_alpha()
            # quit()
@@ -570,8 +590,8 @@ class Game(object):
         self.menu_items['Poison'] = { 'x' : 700, 'y' : 160, 'amount' : 10 }
         self.menu_items['Terminator'] = { 'x' : 700, 'y' : 200, 'amount' : 10 }
         self.menu_items['Bomb'] = { 'x' : 700, 'y' : 240, 'amount' : 10 }
-        self.menu_items['Change gender male'] = { 'x' : 700, 'y' : 280, 'amount' : 10 }
-        self.menu_items['Change gender female'] = { 'x' : 700, 'y' : 320, 'amount' : 10 }
+        self.menu_items['Change gender male'] = { 'x' : 700, 'y' : 280, 'amount' : 100 }
+        self.menu_items['Change gender female'] = { 'x' : 700, 'y' : 320, 'amount' : 100 }
         self.menu_items['Nuke'] = { 'x' : 700, 'y': 360, 'amount' : 10}
         self.menu_items['Gas source'] = { 'x' : 700, 'y' : 400, 'amount' : 10}
    #     self.menu_items['Restart'] = { 'x' : 700, 'y' : 500, 'amount': 'Restart'}
@@ -731,7 +751,7 @@ class Game(object):
 
     def check_game_over(self): #testmetod
         population = self.male_count + self.female_count
-        if population > 100000:
+        if population > 1500:
             self.lost = True
         elif population <= 0:
             self.win = True
@@ -783,15 +803,16 @@ class Game(object):
             weapon_weapon_hit = pygame.sprite.groupcollide(self.weapon_sprites, self.weapon_sprites, False, False) #Vapen -> Vapen
             for weapon1, weapons in weapon_weapon_hit.iteritems():
                 for weapon2 in weapons:
-                    if weapon1 is weapon2: #Om det är samma objekt, fortsätt
+                    if weapon1 is weapon2 or weapon1 not in self.weapon_sprites or weapon2 not in self.weapon_sprites: #Om det är samma objekt, fortsätt
                         continue
-                    if weapon1.name == 'Explosion' and weapon2.name != 'Explosion': #Om första vapnet är en explosion, och andra vapnet inte är det, hantera det (ta bort andra vapnet)
+                    if weapon1.name == 'Explosion' and weapon2.name != 'Explosion' and weapon2.name != 'Gas source': #Om första vapnet är en explosion, och andra vapnet inte är det, hantera det (ta bort andra vapnet)
                         weapon1.handle_collision(weapon2)
                     elif weapon1.type == 'Weapon' and weapon2.name =='Terminator':
                         if weapon1.name == 'Change gender male' or weapon1.name == 'Change gender female': #Om ena vapnet är könsbyte och andra är terminator, gör om terminatorn till vanlig
                             gender = 'M' if weapon1.name == 'Change gender male' else 'F'
                             self.create_rat(weapon2.rect.x, weapon2.rect.y, isAdult = True, direction = weapon2.direction, set_gender = gender)
                             weapon2.delete()
+                            weapon1.delete()
                         else:
                             weapon1.handle_collision(weapon2)
 
