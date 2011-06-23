@@ -13,7 +13,6 @@ from collections import deque
 #TODO       svårighetsgrader (easy/normal/hard)?
 #TODO       större bana (öka tiles)
 #TODO       dynamisk fönsterstorlek?
-#TODO       path-tiles visar riktning
 #TODO       Font caching, dictionary?, rendera inte fonten varje tick
 #TODO       Fler tiles, slumpmässigt? Variera gräst och path-tiles?
 #TODO       Game states - main menu, game over screen, win screen. Win screen - try-except vid inladdning av bana, ingen sån bana - win screen?
@@ -149,9 +148,26 @@ class basic_rat(Rat):
                 self.game.create_rat(x = self.rect.x, y = self.rect.y, set_gender = self.gender, isAdult = True, direction = self.direction)
                 self.delete()
 
+class Tile(pygame.sprite.DirtySprite):
+    def __init__(self, game, tile):
+        pygame.sprite.DirtySprite.__init__(self)
+        self.game = game
+        self.tile = tile
+        self.name = self.get_name_from_tile()
+     #   self.image = self.game.graphics[self.name]
+     #   self.rect = self.image.get_rect()
+
+    def get_name_from_tile(self):
+        if self.tile == '#':
+            return 'Wall'
+        elif self.tile == '.':
+            return 'Path'
+        
+
 class Level(object):
-    def __init__(self, level): #level är startnivån (dvs. 1)
+    def __init__(self, level, game): #level är startnivån (dvs. 1)
         self.map = []
+        self.game = game
         self.level = level
 
     def load_map(self, filename = os.path.join('data', 'map.txt')):
@@ -159,10 +175,11 @@ class Level(object):
         parser.read(filename) #Läs in map.txt
         for row in parser.get('level{0}'.format(self.level), 'map').split(): #Och läs in map under rubriken level{nivå}
             self.map.append(list(row)) #Raderna görs om till en lista och läggs till i self.map
-            
-#    def set_tile(self, x, y, tile):
-#        self.map[y][x] = tile   
 
+    def load_tile_map(self):
+        self.tile_map = [[Tile(self.game, col) for col in row] for row in self.map]
+
+        
     def find_lanes(self, rect): #Kollar vilka rader och kolumner som explosionen kan expandera i.
         tile_x = rect.x / tile_size #Bombens x och y-koordinater divideras med tile_size (32) för få rätt index i self.map
         tile_y = rect.y / tile_size
@@ -183,6 +200,66 @@ class Level(object):
     def get_tile(self, x, y): #Returnerar typen av tile på positionen
         if 0 <= x <= 20 and 0 <= y <= 20:
             return self.map[y][x]
+
+    def set_tile(self, x, y, tile):
+        if 0 <= x <= 20 and 0 <= y <= 20:
+            self.map[y][x] = tile
+
+    def prettify_tiles(self):
+        for x in xrange(21):
+            for y in xrange(21):
+                if not self.is_wall(x, y):
+                    available_dirs = self.check_neighbors(x, y)
+                    if len(available_dirs) == 1:
+                        if 'S' in available_dirs:
+                            self.set_tile(x, y, '0')
+                        elif 'W' in available_dirs:
+                            self.set_tile(x, y, '1')
+                        elif 'N' in available_dirs:
+                            self.set_tile(x, y, '2')
+                        elif 'E' in available_dirs:
+                            self.set_tile(x, y, '3')
+                        else:
+                            print available_dirs
+                    elif len(available_dirs) == 2:
+                        if 'N' in available_dirs and 'S' in available_dirs:
+                            self.set_tile(x, y, '4')
+                        elif 'E' in available_dirs and 'W' in available_dirs:
+                            self.set_tile(x, y, '5')
+                        elif 'E' in available_dirs and 'S' in available_dirs:
+                            self.set_tile(x, y, '6')
+                        elif 'W' in available_dirs and 'S' in available_dirs:
+                            self.set_tile(x, y, '7')
+                        elif 'W' in available_dirs and 'N' in available_dirs:
+                            self.set_tile(x, y, '8')
+                        elif 'N' in available_dirs and 'E' in available_dirs:
+                            self.set_tile(x, y, '9')
+                        else:
+                            print available_dirs
+                    elif len(available_dirs) == 3:
+                        if 'E' in available_dirs and 'W' in available_dirs and 'S' in available_dirs:
+                            self.set_tile(x, y, '10')
+                        elif 'N' in available_dirs and 'W' in available_dirs and 'S' in available_dirs:
+                            self.set_tile(x, y, '11')
+                        elif 'E' in available_dirs and 'W' in available_dirs and 'N' in available_dirs:
+                            self.set_tile(x, y, '12')
+                        elif 'E' in available_dirs and 'S' in available_dirs and 'N' in available_dirs:
+                            self.set_tile(x, y, '13')
+                        else:
+                            print available_dirs
+                    else:
+                        self.set_tile(x, y, '14')
+
+
+    def check_neighbors(self, x, y):
+        directions = {'N' : (0, -1), 'E' : (1, 0), 'W' : (-1, 0), 'S' : (0, 1)}
+        available_dirs = []
+        for dir in directions.keys():
+            neigh_x = x + directions[dir][0]
+            neigh_y = y + directions[dir][1]
+            if not self.is_wall(neigh_x, neigh_y):
+                available_dirs.append(dir)
+        return available_dirs
 
     def prettify_map(self): #Används för att slumpvis rita ut blommor på kartor.
         for row in range(len(self.map)): #För varje rad och kolumn
@@ -436,9 +513,9 @@ class main_menu(object):
 #                            Giftavfall - släpper ut giftig gas som dödar alla som inandas den.
 #                            '''
 #        self.help_item = {'text' : self.help_text, 'x' : 100, 'y': 100}
-        self.menu_text = {'Play' : {'text' : 'Play game', 'x' : 600, 'y' : 100},
-                          'Highscore' : {'text' : 'Highscore', 'x' : 600, 'y' : 150},
-                          'Exit' : {'text' : 'Exit', 'x' : 600, 'y' : 200}}
+        self.menu_text = {'Play' : {'text' : 'Play game', 'x' : 600, 'y' : 300},
+                          'Highscore' : {'text' : 'Highscore', 'x' : 600, 'y' : 350},
+                          'Exit' : {'text' : 'Exit', 'x' : 600, 'y' : 400}}
 
         self.done = False
         self.image = pygame.image.load(os.path.join('data','main.png')).convert_alpha()
@@ -451,7 +528,7 @@ class main_menu(object):
 #        self.help_item['render'] = render
 #        self.help_item['rect'] = render_rect
         for menu_item in self.menu_text.values():
-            render = self.menu_font.render(menu_item['text'], True, white)
+            render = self.menu_font.render(menu_item['text'], True, black)
             render_rect = render.get_rect(x = menu_item['x'], y = menu_item['y'])
             menu_item['render'] = render
             menu_item['rect'] = render_rect
@@ -540,14 +617,13 @@ class Game(object):
             self.create_rat(init = True)
 
     def create_level(self): #Skapa en instans av Level, ladda kartan, rita ut blommor
-        try:
-            self.leveltest = Level(self.level)
-            self.leveltest.load_map()
-            self.leveltest.prettify_map()
-            for row in self.leveltest.map:
-                print ''.join(row)
-        except:
-            self.done == True
+        self.leveltest = Level(self.level, self)
+        self.leveltest.load_map()
+        self.leveltest.prettify_map()
+        self.leveltest.prettify_tiles()
+        self.leveltest.load_tile_map()
+        for row in self.leveltest.map:
+            print ''.join(row)
 
     def initialize_graphics(self): #Ladda in all grafik
         self.graphics['Stop sign'] = pygame.image.load(os.path.join('data','stop.png')).convert_alpha()
@@ -567,6 +643,16 @@ class Game(object):
         self.graphics['Radiation'] = pygame.image.load(os.path.join('data', 'radiation.png')).convert_alpha()
         self.graphics['Gas'] = pygame.image.load(os.path.join('data', 'gas.png')).convert_alpha()
         self.graphics['Gas source'] = pygame.image.load(os.path.join('data', 'gas_source.png')).convert_alpha()
+#        self.graphics['Dirt'] = [ pygame.image.load(os.path.join('data', 'desert1.png')).convert_alpha(),
+#                                  pygame.image.load(os.path.join('data', 'desert2.png')).convert_alpha(),
+#                                  pygame.image.load(os.path.join('data', 'desert3.png')).convert_alpha(),
+#                                  pygame.image.load(os.path.join('data', 'desert4.png')).convert_alpha()
+#                                ]
+#        self.graphics['Cactus'] = [ pygame.image.load(os.path.join('data', 'desertplant.png')).convert_alpha(),
+#                                    pygame.image.load(os.path.join('data', 'desertpumpkin.png')).convert_alpha()
+#                                  ]
+        for i in range(0, 15):
+            self.graphics[str(i)] = pygame.image.load(os.path.join('data', '{0}.png'.format(i))).convert_alpha()
          #   self.graphics['Restart'] = pygame.image.load(os.path.join('data', 'restart.png')).convert_alpha()
            # quit()
 
@@ -611,8 +697,10 @@ class Game(object):
                     screen.blit(self.graphics['Grass'], pygame.Rect(col * tile_size, row * tile_size, 32, 32))
                 if tile == '*':
                     screen.blit(self.graphics['Flower'], pygame.Rect(col * tile_size, row * tile_size, 32, 32))
-                elif tile == '.':
-                    screen.blit(self.graphics['Path'], pygame.Rect(col * tile_size, row * tile_size, 32, 32))
+               # elif tile == '.':
+               #     screen.blit(random.choice(self.graphics['Dirt']), pygame.Rect(col * tile_size, row * tile_size, 32, 32))
+                elif tile != '#':
+                    screen.blit(self.graphics[tile], pygame.Rect(col * tile_size, row * tile_size, 32, 32))
 
     def update_sprites(self):
         self.male_count = 0 #Återställ räkningen av råttor
@@ -758,7 +846,7 @@ class Game(object):
 
     def create_rat(self, x = 0, y = 0, init = False, set_gender = None, isAdult = False, direction = None): #Metod för att skapa nya råttor (lite rörig just nu)
         if init: #Om det är spelstart
-            while self.leveltest.map[y][x] != '.': #Så länge som startposition är en vägg
+            while self.leveltest.is_wall(x, y): #Så länge som startposition är en vägg
                 x, y = random.randrange(21), random.randrange(21) #Slumpa fram nya index
             x *= tile_size #Omvanlda koordinaterna från index i map-arrayen till koordinater
             y *= tile_size
