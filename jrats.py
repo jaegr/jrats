@@ -8,7 +8,6 @@ from collections import deque
 
 #TODO       egna sprites
 #TODO       win-conditions
-#TODO       gas
 #TODO       egna vapen?
 #TODO       balancera svårighetsgrad
 #TODO       svårighetsgrader (easy/normal/hard)?
@@ -16,6 +15,7 @@ from collections import deque
 #TODO       dynamisk fönsterstorlek?
 #TODO       path-tiles visar riktning
 #TODO       Font caching, dictionary?, rendera inte fonten varje tick
+#TODO       Fler tiles, slumpmässigt? Variera gräst och path-tiles?
 #TODO       Game states - main menu, game over screen, win screen. Win screen - try-except vid inladdning av bana, ingen sån bana - win screen?
 #BUG        kollision vid placering ovanpå råttor
 black    = (   0,   0,   0)
@@ -26,6 +26,7 @@ blue     = (   0,   0, 255)
 yellow   = ( 255, 255,   0)
 
 pygame.init()
+pygame.font.init() #initierar textutskrift
 size=[800,672]
 tile_size = 32
 screen=pygame.display.set_mode(size)
@@ -216,8 +217,10 @@ class Weapons(pygame.sprite.DirtySprite): #Huvudklassen för vapen
     def update(self): #För de vapen som inte uppdateras i varje frame
         pass
 
-    def play_sound(self): #Spela upp rätt vapenljud
-        self.game.play_sound(self.name)
+    def play_sound(self, file = None): #Spela upp rätt vapenljud
+        if not file:
+            file = self.name
+        self.game.play_sound(file)
         
 class Nuke(Weapons): #Nuke avger strålning som gör råttor sterila
     def __init__(self, game, x, y):
@@ -265,8 +268,6 @@ class Gas_source(Weapons):
         self.directions = {'Up' : (0, 32), 'Right' : (32, 0), 'Down' : (0, -32), 'Left' : (-32 , 0), 'Up Right' : (32, 32), 'Up Left' : (-32, 32), 'Down Right' : (32, -32), 'Down Left' : (-32, -32)}
         self.gas_clouds = []
         self.play_sound()
-        #        print dir(self.gas_clouds[0])
-      #  self.game.weapon_sprites.add(Gas(self.game, self.start_x, self.start_y))
 
     def add_gas(self):
         done = False
@@ -293,7 +294,6 @@ class Gas_source(Weapons):
                     x, y = random.choice(available_neighbor_tiles)
                     self.gas_clouds.append(Gas(self.game, x, y, self, self.level))
                     self.game.weapon_sprites.add(self.gas_clouds[-1])
-                    #self.expand_directions.rotate(-1)
                     done = True
                     break
 
@@ -310,8 +310,6 @@ class Gas_source(Weapons):
             gas_cloud.delete()
             self.gas_clouds.remove(gas_cloud)
             self.gas_timer = pygame.time.get_ticks()
-
-
 
 class Gas(Weapons): #Ej implementerat än
     def __init__(self, game, x, y, gas_source, level):
@@ -353,13 +351,23 @@ class Terminator(Weapons, Rat): #Terminator-råttor ärver från både Weapons o
     def update(self): #Kör Ratklassens update
         Rat.update(self)
 
-class Change_gender(Weapons): #Byter kön på en råtta, och gör en terminator-råtta till en vanlig råtta
+class Change_gender_male(Weapons): #Byter kön på en råtta, och gör en terminator-råtta till en vanlig råtta
     def __init__(self, game, x, y):
-        Weapons.__init__(self, game, x, y, 'Change gender')
+        Weapons.__init__(self, game, x, y, 'Change gender male')
         
     def handle_collision(self, rat):
-        if rat.type == 'Rat': #Om den kolliderar med en rått-typ, kör råttans change gender-metod, och ta bort sig själv
-            self.play_sound()
+        if rat.type == 'Rat' and rat.gender == 'F': #Om den kolliderar med en rått-typ, kör råttans change gender-metod, och ta bort sig själv
+            self.play_sound('Change gender')
+            rat.change_gender()
+            self.delete()
+
+class Change_gender_female(Weapons): #Byter kön på en råtta, och gör en terminator-råtta till en vanlig råtta
+    def __init__(self, game, x, y):
+        Weapons.__init__(self, game, x, y, 'Change gender female')
+
+    def handle_collision(self, rat):
+        if rat.type == 'Rat' and rat.gender == 'M': #Om den kolliderar med en rått-typ, kör råttans change gender-metod, och ta bort sig själv
+            self.play_sound('Change gender')
             rat.change_gender()
             self.delete()
 
@@ -414,6 +422,47 @@ class Explosion(Weapons):
     def handle_collision(self, obj):
         obj.delete() #Allt som kolliderar med explosionen ska tas bort (både råttor och vapen)
 
+class main_menu(object):
+    def __init__(self):
+        self.menu_font = pygame.font.Font(None, 40)
+        self.menu_text = {'Play' : {'text' : 'Play game', 'x' : 600, 'y' : 100},
+                          'Highscore' : {'text' : 'Highscore', 'x' : 600, 'y' : 150},
+                          'Exit' : {'text' : 'Exit', 'x' : 600, 'y' : 200}}
+        self.done = False
+        self.initialize_text()
+
+    def initialize_text(self):
+        for menu_item in self.menu_text.values():
+            render = self.menu_font.render(menu_item['text'], True, white)
+            render_rect = render.get_rect(x = menu_item['x'], y = menu_item['y'])
+            menu_item['render'] = render
+            menu_item['rect'] = render_rect
+
+    def main(self):
+        while not self.done:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.done = True
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    self.handle_mouse(event.pos[0], event.pos[1])
+            screen.fill(black)
+            for menu_item in self.menu_text.values():
+                screen.blit(menu_item['render'], menu_item['rect'])
+            pygame.display.flip()
+
+    def handle_mouse(self, mouse_x, mouse_y):
+        for menu_item in self.menu_text.values():
+            if menu_item['rect'].x <= mouse_x <= menu_item['rect'].x + menu_item['rect'].x and menu_item['rect'].y <= mouse_y <= menu_item['rect'].y + menu_item['rect'].h:
+                print menu_item['text']
+                if menu_item['text'] == 'Play game':
+                    rats = Game()
+                    rats.main_loop()
+                elif menu_item['text'] == 'Exit':
+                    self.done = True
+
+class highscore_screen(object):
+    pass
+
 class Menu_items(pygame.sprite.DirtySprite): #Skapar bilderna i menyn
     def __init__(self, game, name, x, y):
         pygame.sprite.DirtySprite.__init__(self)
@@ -428,7 +477,6 @@ class Menu_items(pygame.sprite.DirtySprite): #Skapar bilderna i menyn
 
 class Game(object):
     def __init__(self):
-        pygame.font.init() #initierar textutskrift
         pygame.mixer.init(frequency=22050, size=-16, channels=2, buffer=4096) #Initierar ljuder
         self.graphics = {} #Kommer innehålla all grafik
         self.sounds = {}   #Och allt ljud
@@ -472,28 +520,32 @@ class Game(object):
             self.create_rat(init = True)
 
     def create_level(self): #Skapa en instans av Level, ladda kartan, rita ut blommor
-        self.leveltest = Level(self.level)
-        self.leveltest.load_map()
-        self.leveltest.prettify_map()
-        for row in self.leveltest.map:
-            print ''.join(row)
+        try:
+            self.leveltest = Level(self.level)
+            self.leveltest.load_map()
+            self.leveltest.prettify_map()
+            for row in self.leveltest.map:
+                print ''.join(row)
+        except:
+            self.done == True
 
     def initialize_graphics(self): #Ladda in all grafik
-        self.graphics['Stop sign'] = pygame.image.load(os.path.join('data','stop.png')).convert_alpha()
-        self.graphics['Poison'] = pygame.image.load(os.path.join('data', 'poison.png')).convert_alpha()
+        self.graphics['Stop sign'] = pygame.image.load(os.path.join('data','stop2.png')).convert_alpha()
+        self.graphics['Poison'] = pygame.image.load(os.path.join('data', 'poison2.png')).convert_alpha()
         self.graphics['Male rat'] = pygame.image.load(os.path.join('data', 'male.png')).convert_alpha()
         self.graphics['Female rat'] = pygame.image.load(os.path.join('data', 'female.png')).convert_alpha()
         self.graphics['Baby rat'] = pygame.image.load(os.path.join('data', 'baby_rat.png')).convert_alpha()
         self.graphics['Terminator'] = pygame.image.load(os.path.join('data', 'terminator.png')).convert_alpha()
-        self.graphics['Flower'] = pygame.image.load(os.path.join('data', 'flower.png')).convert_alpha()
-        self.graphics['Bomb'] = pygame.image.load(os.path.join('data', 'bomb.png')).convert_alpha()
-        self.graphics['Explosion'] = pygame.image.load(os.path.join('data', 'explosion.png')).convert_alpha()
-        self.graphics['Path'] = pygame.image.load(os.path.join('data', 'dirt3.png')).convert_alpha()
-        self.graphics['Grass'] = pygame.image.load(os.path.join('data', 'grass8.png')).convert_alpha()
-        self.graphics['Change gender'] = pygame.image.load(os.path.join('data', 'gender.png')).convert_alpha()
+        self.graphics['Flower'] = pygame.image.load(os.path.join('data', 'flower2.png')).convert_alpha()
+        self.graphics['Bomb'] = pygame.image.load(os.path.join('data', 'bomb2.png')).convert_alpha()
+        self.graphics['Explosion'] = pygame.image.load(os.path.join('data', 'explosion2.png')).convert_alpha()
+        self.graphics['Path'] = pygame.image.load(os.path.join('data', 'dirt.png')).convert_alpha()
+        self.graphics['Grass'] = pygame.image.load(os.path.join('data', 'grass9.png')).convert_alpha()
+        self.graphics['Change gender male'] = pygame.image.load(os.path.join('data', 'gender_male.png')).convert_alpha()
+        self.graphics['Change gender female'] = pygame.image.load(os.path.join('data', 'gender_female.png')).convert_alpha()
         self.graphics['Nuke'] = pygame.image.load(os.path.join('data', 'nuke.png')).convert_alpha()
-        self.graphics['Radiation'] = pygame.image.load(os.path.join('data', 'radiation.png')).convert_alpha()
-        self.graphics['Gas'] = pygame.image.load(os.path.join('data', 'gas.png')).convert_alpha()
+        self.graphics['Radiation'] = pygame.image.load(os.path.join('data', 'radiation2.png')).convert_alpha()
+        self.graphics['Gas'] = pygame.image.load(os.path.join('data', 'gas2.png')).convert_alpha()
         self.graphics['Gas source'] = pygame.image.load(os.path.join('data', 'gas_source.png')).convert_alpha()
          #   self.graphics['Restart'] = pygame.image.load(os.path.join('data', 'restart.png')).convert_alpha()
            # quit()
@@ -518,9 +570,10 @@ class Game(object):
         self.menu_items['Poison'] = { 'x' : 700, 'y' : 160, 'amount' : 10 }
         self.menu_items['Terminator'] = { 'x' : 700, 'y' : 200, 'amount' : 10 }
         self.menu_items['Bomb'] = { 'x' : 700, 'y' : 240, 'amount' : 10 }
-        self.menu_items['Change gender'] = { 'x' : 700, 'y' : 280, 'amount' : 10 }
-        self.menu_items['Nuke'] = { 'x' : 700, 'y': 320, 'amount' : 10}
-        self.menu_items['Gas source'] = { 'x' : 700, 'y' : 360, 'amount' : 10}
+        self.menu_items['Change gender male'] = { 'x' : 700, 'y' : 280, 'amount' : 10 }
+        self.menu_items['Change gender female'] = { 'x' : 700, 'y' : 320, 'amount' : 10 }
+        self.menu_items['Nuke'] = { 'x' : 700, 'y': 360, 'amount' : 10}
+        self.menu_items['Gas source'] = { 'x' : 700, 'y' : 400, 'amount' : 10}
    #     self.menu_items['Restart'] = { 'x' : 700, 'y' : 500, 'amount': 'Restart'}
         for name, coords in self.menu_items.iteritems():
             self.menu_sprites.add(Menu_items(self, name, coords['x'], coords['y'])) #Skapa sprites av alla vapen och lägg till i spritegroupen
@@ -617,8 +670,10 @@ class Game(object):
             self.weapon_sprites.add(Poison(self, mouse_x, mouse_y))
         elif self.active_weapon == 'Bomb':
             self.weapon_sprites.add(Bomb(self, mouse_x, mouse_y))
-        elif self.active_weapon == 'Change gender':
-            self.weapon_sprites.add(Change_gender(self, mouse_x, mouse_y))
+        elif self.active_weapon == 'Change gender male':
+            self.weapon_sprites.add(Change_gender_male(self, mouse_x, mouse_y))
+        elif self.active_weapon == 'Change gender female':
+            self.weapon_sprites.add(Change_gender_female(self, mouse_x, mouse_y))
         elif self.active_weapon == 'Terminator':
             self.weapon_sprites.add(Terminator(self, self.leveltest, mouse_x, mouse_y))
         elif self.active_weapon == 'Nuke':
@@ -653,11 +708,11 @@ class Game(object):
 #            game_rects.append(self.female_rat_sprites.draw(screen))
 #            game_rects.append(self.child_rat_sprites.draw(screen))
 #            game_rects.append(self.weapon_sprites.draw(screen))
-
+            weapon_rects = self.weapon_sprites.draw(screen)
             male_rects = self.male_rat_sprites.draw(screen) #Räkna ut alla sprite-rektanglar
             female_rects = self.female_rat_sprites.draw(screen)
             child_rects = self.child_rat_sprites.draw(screen)
-            weapon_rects = self.weapon_sprites.draw(screen)
+
             menu_rects = self.menu_sprites.draw(screen)
             self.process_text() #Hantera all text
 #            pygame.display.update(male_rects)
@@ -733,8 +788,9 @@ class Game(object):
                     if weapon1.name == 'Explosion' and weapon2.name != 'Explosion': #Om första vapnet är en explosion, och andra vapnet inte är det, hantera det (ta bort andra vapnet)
                         weapon1.handle_collision(weapon2)
                     elif weapon1.type == 'Weapon' and weapon2.name =='Terminator':
-                        if weapon1.name == 'Change gender': #Om ena vapnet är könsbyte och andra är terminator, gör om terminatorn till vanlig råtta
-                            self.create_rat(weapon2.rect.x, weapon2.rect.y, isAdult = True, direction = weapon2.direction)
+                        if weapon1.name == 'Change gender male' or weapon1.name == 'Change gender female': #Om ena vapnet är könsbyte och andra är terminator, gör om terminatorn till vanlig
+                            gender = 'M' if weapon1.name == 'Change gender male' else 'F'
+                            self.create_rat(weapon2.rect.x, weapon2.rect.y, isAdult = True, direction = weapon2.direction, set_gender = gender)
                             weapon2.delete()
                         else:
                             weapon1.handle_collision(weapon2)
@@ -775,6 +831,9 @@ class Game(object):
 #
 #        except:
 #            traceback.print_exc(sys.stderr)
-rats = Game()
-rats.main_loop()
+#rats = Game()
+#rats.main_loop()
+#pygame.quit()
+test = main_menu()
+test.main()
 pygame.quit()
