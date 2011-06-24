@@ -149,20 +149,31 @@ class basic_rat(Rat):
                 self.delete()
 
 class Tile(pygame.sprite.DirtySprite):
-    def __init__(self, game, tile):
+    def __init__(self, game, x, y, tile, tile_number):
         pygame.sprite.DirtySprite.__init__(self)
+        self.dirty = 2
         self.game = game
         self.tile = tile
+        self.tile_number = tile_number
         self.name = self.get_name_from_tile()
-     #   self.image = self.game.graphics[self.name]
-     #   self.rect = self.image.get_rect() 
+        self.x = x
+        self.y = y
+        if self.name == 'Path':
+            self.image = self.game.graphics[self.name][self.tile_number]
+        else:
+            if random.randint(1,100) < 95:
+                self.image = random.choice(self.game.graphics[self.name])
+            else:
+                self.image = random.choice(self.game.graphics['Decorations'])
+        self.rect = self.image.get_rect()
+        self.rect.x = self.x * tile_size
+        self.rect.y = self.y * tile_size
 
     def get_name_from_tile(self):
         if self.tile == '#':
             return 'Wall'
         elif self.tile == '.':
             return 'Path'
-        
 
 class Level(object):
     def __init__(self, level, game): #level är startnivån (dvs. 1)
@@ -177,8 +188,7 @@ class Level(object):
             self.map.append(list(row)) #Raderna görs om till en lista och läggs till i self.map
 
     def load_tile_map(self):
-        self.tile_map = [[Tile(self.game, col) for col in row] for row in self.map]
-
+        self.tile_map = [[Tile(self.game, x, y, col, self.check_neighbors(x, y)) for x, col in enumerate(row)] for y, row in enumerate(self.map)]
         
     def find_lanes(self, rect): #Kollar vilka rader och kolumner som explosionen kan expandera i.
         tile_x = rect.x / tile_size #Bombens x och y-koordinater divideras med tile_size (32) för få rätt index i self.map
@@ -205,68 +215,50 @@ class Level(object):
         if 0 <= x <= 20 and 0 <= y <= 20:
             self.map[y][x] = tile
 
-    def prettify_tiles(self):
-        for x in xrange(21):
-            for y in xrange(21):
-                if not self.is_wall(x, y):
-                    available_dirs = self.check_neighbors(x, y)
-                    if len(available_dirs) == 1:
-                        if 'S' in available_dirs:
-                            self.set_tile(x, y, '0')
-                        elif 'W' in available_dirs:
-                            self.set_tile(x, y, '1')
-                        elif 'N' in available_dirs:
-                            self.set_tile(x, y, '2')
-                        elif 'E' in available_dirs:
-                            self.set_tile(x, y, '3')
-                        else:
-                            print available_dirs
-                    elif len(available_dirs) == 2:
-                        if 'N' in available_dirs and 'S' in available_dirs:
-                            self.set_tile(x, y, '4')
-                        elif 'E' in available_dirs and 'W' in available_dirs:
-                            self.set_tile(x, y, '5')
-                        elif 'E' in available_dirs and 'S' in available_dirs:
-                            self.set_tile(x, y, '6')
-                        elif 'W' in available_dirs and 'S' in available_dirs:
-                            self.set_tile(x, y, '7')
-                        elif 'W' in available_dirs and 'N' in available_dirs:
-                            self.set_tile(x, y, '8')
-                        elif 'N' in available_dirs and 'E' in available_dirs:
-                            self.set_tile(x, y, '9')
-                        else:
-                            print available_dirs
-                    elif len(available_dirs) == 3:
-                        if 'E' in available_dirs and 'W' in available_dirs and 'S' in available_dirs:
-                            self.set_tile(x, y, '10')
-                        elif 'N' in available_dirs and 'W' in available_dirs and 'S' in available_dirs:
-                            self.set_tile(x, y, '11')
-                        elif 'E' in available_dirs and 'W' in available_dirs and 'N' in available_dirs:
-                            self.set_tile(x, y, '12')
-                        elif 'E' in available_dirs and 'S' in available_dirs and 'N' in available_dirs:
-                            self.set_tile(x, y, '13')
-                        else:
-                            print available_dirs
-                    else:
-                        self.set_tile(x, y, '14')
-
-
     def check_neighbors(self, x, y):
-        directions = {'N' : (0, -1), 'E' : (1, 0), 'W' : (-1, 0), 'S' : (0, 1)}
-        available_dirs = []
-        for dir in directions.keys():
-            neigh_x = x + directions[dir][0]
-            neigh_y = y + directions[dir][1]
-            if not self.is_wall(neigh_x, neigh_y):
-                available_dirs.append(dir)
-        return available_dirs
-
-    def prettify_map(self): #Används för att slumpvis rita ut blommor på kartor.
-        for row in range(len(self.map)): #För varje rad och kolumn
-            for col in range(len(self.map[row])):
-                if self.map[row][col] == '#': #Om det är en gräs-tile, så finns det viss chans att tilen får en blomma
-                    if random.randint(0,20) > 19:
-                        self.map[row][col] = '*'
+        if not self.is_wall(x, y):
+            directions = {'N' : (0, -1), 'E' : (1, 0), 'W' : (-1, 0), 'S' : (0, 1)}
+            available_dirs = []
+            for dir in directions.keys():
+                neigh_x = x + directions[dir][0]
+                neigh_y = y + directions[dir][1]
+                if not self.is_wall(neigh_x, neigh_y):
+                    available_dirs.append(dir)
+            if len(available_dirs) == 1:
+                if 'S' in available_dirs:
+                    return 0
+                elif 'W' in available_dirs:
+                    return 1
+                elif 'N' in available_dirs:
+                    return 2
+                elif 'E' in available_dirs:
+                    return 3
+            elif len(available_dirs) == 2:
+                if 'N' in available_dirs and 'S' in available_dirs:
+                    return 4
+                elif 'E' in available_dirs and 'W' in available_dirs:
+                    return 5
+                elif 'E' in available_dirs and 'S' in available_dirs:
+                    return 6
+                elif 'W' in available_dirs and 'S' in available_dirs:
+                    return 7
+                elif 'W' in available_dirs and 'N' in available_dirs:
+                    return 8
+                elif 'N' in available_dirs and 'E' in available_dirs:
+                    return 9
+            elif len(available_dirs) == 3:
+                if 'E' in available_dirs and 'W' in available_dirs and 'S' in available_dirs:
+                    return 10
+                elif 'N' in available_dirs and 'W' in available_dirs and 'S' in available_dirs:
+                    return 11
+                elif 'E' in available_dirs and 'W' in available_dirs and 'N' in available_dirs:
+                    return 12
+                elif 'E' in available_dirs and 'S' in available_dirs and 'N' in available_dirs:
+                    return 13
+            else:
+                return 14
+        else:
+            return None
 
     def is_wall(self, x, y): #Kollar om tilen är antingen är gräs eller blomma, dvs. en vägg
         if 0 <= x <= 20 and 0 <= y <= 20:
@@ -448,7 +440,6 @@ class Change_gender_female(Weapons): #Byter kön på en råtta, och gör en term
             rat.change_gender()
             self.delete()
 
-
 class Poison(Weapons): #Placeras ut på banan och vid kollision med en råtta så försvinner både råttan och giftet
     def __init__(self, game, x, y):
         Weapons.__init__(self, game, x, y, 'Poison')
@@ -593,6 +584,7 @@ class Game(object):
         self.female_rat_sprites = pygame.sprite.LayeredDirty()
         self.child_rat_sprites = pygame.sprite.LayeredDirty()
         self.weapon_sprites = pygame.sprite.LayeredDirty()
+        self.tile_sprites = pygame.sprite.LayeredDirty()
         self.done = False #Anger om spelet är slut
         self.create_level() #Skapar banan
         self.initial_population() 
@@ -619,9 +611,11 @@ class Game(object):
     def create_level(self): #Skapa en instans av Level, ladda kartan, rita ut blommor
         self.leveltest = Level(self.level, self)
         self.leveltest.load_map()
-        self.leveltest.prettify_map()
-        self.leveltest.prettify_tiles()
         self.leveltest.load_tile_map()
+        for row in self.leveltest.tile_map:
+            for col in row:
+                self.tile_sprites.add(col)
+        print self.tile_sprites
         for row in self.leveltest.map:
             print ''.join(row)
 
@@ -632,27 +626,25 @@ class Game(object):
         self.graphics['Female rat'] = pygame.image.load(os.path.join('data', 'female.png')).convert_alpha()
         self.graphics['Baby rat'] = pygame.image.load(os.path.join('data', 'baby_rat.png')).convert_alpha()
         self.graphics['Terminator'] = pygame.image.load(os.path.join('data', 'terminator.png')).convert_alpha()
-        self.graphics['Flower'] = pygame.image.load(os.path.join('data', 'flower.png')).convert_alpha()
         self.graphics['Bomb'] = pygame.image.load(os.path.join('data', 'bomb.png')).convert_alpha()
         self.graphics['Explosion'] = pygame.image.load(os.path.join('data', 'explosion.png')).convert_alpha()
-        self.graphics['Path'] = pygame.image.load(os.path.join('data', 'dirt.png')).convert_alpha()
-        self.graphics['Grass'] = pygame.image.load(os.path.join('data', 'grass.png')).convert_alpha()
         self.graphics['Change gender male'] = pygame.image.load(os.path.join('data', 'gender_male.png')).convert_alpha()
         self.graphics['Change gender female'] = pygame.image.load(os.path.join('data', 'gender_female.png')).convert_alpha()
         self.graphics['Nuke'] = pygame.image.load(os.path.join('data', 'nuke.png')).convert_alpha()
         self.graphics['Radiation'] = pygame.image.load(os.path.join('data', 'radiation.png')).convert_alpha()
         self.graphics['Gas'] = pygame.image.load(os.path.join('data', 'gas.png')).convert_alpha()
         self.graphics['Gas source'] = pygame.image.load(os.path.join('data', 'gas_source.png')).convert_alpha()
-#        self.graphics['Dirt'] = [ pygame.image.load(os.path.join('data', 'desert1.png')).convert_alpha(),
-#                                  pygame.image.load(os.path.join('data', 'desert2.png')).convert_alpha(),
-#                                  pygame.image.load(os.path.join('data', 'desert3.png')).convert_alpha(),
-#                                  pygame.image.load(os.path.join('data', 'desert4.png')).convert_alpha()
-#                                ]
-#        self.graphics['Cactus'] = [ pygame.image.load(os.path.join('data', 'desertplant.png')).convert_alpha(),
-#                                    pygame.image.load(os.path.join('data', 'desertpumpkin.png')).convert_alpha()
-#                                  ]
-        for i in range(0, 15):
-            self.graphics[str(i)] = pygame.image.load(os.path.join('data', '{0}.png'.format(i))).convert_alpha()
+        self.graphics['Wall'] = [ pygame.image.load(os.path.join('data', 'desert', 'wall1.png')).convert_alpha(),
+                                  pygame.image.load(os.path.join('data', 'desert', 'wall2.png')).convert_alpha(),
+                                  pygame.image.load(os.path.join('data', 'desert', 'wall3.png')).convert_alpha(),
+                                  pygame.image.load(os.path.join('data', 'desert', 'wall4.png')).convert_alpha()]
+        self.graphics['Decorations'] = [ pygame.image.load(os.path.join('data', 'desert', 'wall5.png')).convert_alpha(),
+                                  pygame.image.load(os.path.join('data', 'desert', 'wall6.png')).convert_alpha(),
+                                  pygame.image.load(os.path.join('data', 'desert', 'wall7.png')).convert_alpha()]
+        self.graphics['Path'] = [pygame.image.load(os.path.join('data', 'desert', '{0}.png'.format(i))).convert_alpha() for i in range(15)]
+        print type(self.graphics['Path'][0])
+    #    for i in range(0, 15):
+    #        self.graphics[str(i)] = pygame.image.load(os.path.join('data', 'desert', '{0}.png'.format(i))).convert_alpha()
          #   self.graphics['Restart'] = pygame.image.load(os.path.join('data', 'restart.png')).convert_alpha()
            # quit()
 
@@ -806,7 +798,7 @@ class Game(object):
                     self.handle_mouse(event.pos[0], event.pos[1])
             screen.fill(black)
             clock.tick(100)
-            self.draw_level() #Varje frame så ska banan ritas ut, vapen eventuellt genereras, alla sprites uppdateras, alla kollisioner räknas ut och användarinterfacet ritas ut
+        #    self.draw_level() #Varje frame så ska banan ritas ut, vapen eventuellt genereras, alla sprites uppdateras, alla kollisioner räknas ut och användarinterfacet ritas ut
             self.generate_weapons()
             self.update_sprites()            
             self.collisions()
@@ -816,6 +808,8 @@ class Game(object):
 #            game_rects.append(self.female_rat_sprites.draw(screen))
 #            game_rects.append(self.child_rat_sprites.draw(screen))
 #            game_rects.append(self.weapon_sprites.draw(screen))
+#            game_rects.append(self.tile_sprites.draw(screen))
+            tile_rects = self.tile_sprites.draw(screen)
             weapon_rects = self.weapon_sprites.draw(screen)
             male_rects = self.male_rat_sprites.draw(screen) #Räkna ut alla sprite-rektanglar
             female_rects = self.female_rat_sprites.draw(screen)
