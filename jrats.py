@@ -7,7 +7,6 @@ import os
 from collections import deque
 import glob
 
-#TODO       egna sprites
 #TODO       win-conditions
 #TODO       egna vapen?
 #TODO       balancera svårighetsgrad
@@ -34,7 +33,7 @@ pygame.display.set_caption("j&R")
 clock = pygame.time.Clock()
 
 class Rat(pygame.sprite.DirtySprite): #Huvudklassen för alla råttor. Vanliga råttor och terminator-råttorna ärver den
-    def __init__(self, direction = None):
+    def __init__(self, direction=None):
         pygame.sprite.DirtySprite.__init__(self)
         self.directions = {'N': 1, 'S': -1, 'E': 2, 'W': -2} #Vilken riktning som råttorna ska gå. Heltal gör det enkelt att vända om (-self.direction)
         self.rotation = {1: 0, -1: 180, 2: 270, -2: 90}     #Hur många grader bilden på råttan ska roteras. Motsvarar samma heltal som i self.directions
@@ -82,8 +81,8 @@ class Rat(pygame.sprite.DirtySprite): #Huvudklassen för alla råttor. Vanliga r
         self.kill()
 
 
-class basic_rat(Rat):
-    def __init__(self, game, level, x = 32, y = 32, isAdult = True, gender = None, direction = None): #Vanliga råttor
+class EnemyRat(Rat):
+    def __init__(self, game, level, x=32, y=32, isAdult=True, gender=None, direction=None): #Vanliga råttor
         self.level_instance = level #Ta emot levelinstansen (som krävs för att bestämma riktningar)
         self.game = game            #Gameklassens instans krävs bl.a. för att byta kön eftersom den skapar en ny råtta av motsatt kön
         if gender is None:          #Om råttans kön inte redan är bestäms, välj ett slumpvis
@@ -113,7 +112,8 @@ class basic_rat(Rat):
 
     def change_gender(self): #Skapar en ny råttsprite vid könbyte. 
         new_gender = 'M' if self.gender == 'F' else 'F'
-        self.game.create_rat(x = self.rect.x, y = self.rect.y, set_gender = new_gender, isAdult = self.adult, direction = self.direction)
+        self.game.create_rat(x=self.rect.x, y=self.rect.y, set_gender=new_gender,
+                             isAdult=self.adult, direction=self.direction)
         self.delete()
 
 
@@ -131,7 +131,7 @@ class basic_rat(Rat):
         elif pygame.time.get_ticks() - self.time_since_baby > 4000 and self.pregnant: #Ett barn föds var fjärde sekund
             print 'baby born! babies left:', self.babies_left
             self.time_since_baby = pygame.time.get_ticks() #Återställ timern
-            self.game.create_rat(x = self.rect.x, y = self.rect.y) #Skapa barnet på samma position som mamman
+            self.game.create_rat(x=self.rect.x, y=self.rect.y) #Skapa barnet på samma position som mamman
             self.babies_left -= 1 #Minska hur många barn som är kvar att föda
             if self.babies_left <= 0: #Om råttan har fött alla barn
                 print 'no more babies'
@@ -147,7 +147,7 @@ class basic_rat(Rat):
 
         if not self.adult: #Om det är ett barn, och de har gått mer än 10 sekunder sen födseln, skapa en ny, vuxen, råtta med rätt kön
             if pygame.time.get_ticks() - self.birth > 10000:
-                self.game.create_rat(x = self.rect.x, y = self.rect.y, set_gender = self.gender, isAdult = True, direction = self.direction)
+                self.game.create_rat(x=self.rect.x, y=self.rect.y, set_gender=self.gender, isAdult=True, direction=self.direction)
                 self.delete()
 
 
@@ -186,7 +186,7 @@ class Level(object):
         self.level = level
         self.tile_set = ''
 
-    def load_map(self, filename = os.path.join('data', 'map.txt')):
+    def load_map(self, filename=os.path.join('data', 'map.txt')):
         parser = ConfigParser.ConfigParser() #ConfigParser gör det smidigt att läsa in banor från textfiler
         parser.read(filename) #Läs in map.txt
         self.tile_set = parser.get('level{0}'.format(self.level), 'tileset')
@@ -289,7 +289,7 @@ class Weapons(pygame.sprite.DirtySprite): #Huvudklassen för vapen
     def update(self): #För de vapen som inte uppdateras i varje frame
         pass
 
-    def play_sound(self, file = None): #Spela upp rätt vapenljud
+    def play_sound(self, file=None): #Spela upp rätt vapenljud
         if not file:
             file = self.name
         self.game.play_sound(file)
@@ -325,15 +325,13 @@ class Radiation(Weapons): #Radiation är den strålning som Nuke avger
                 self.blink_time = pygame.time.get_ticks() #Återställ blinktiden
 
 
-class Gas_source(Weapons):
+class GasSource(Weapons):
     def __init__(self, game, level, x, y):
         Weapons.__init__(self, game, x, y, 'Gas source')
         self.level = level
         self.gas_timer = pygame.time.get_ticks() #Kollar när ett nytt gasmoln ska skapas
         self.depth = 1 #Hur långt ifrån gaskällan vi är (t.ex. 2 * 32 pixlar)
-        #self.expand_directions = deque(['Up', 'Right', 'Down', 'Left', 'Up Left', 'Up Right', 'Down Right', 'Down Left'])
         self.expand_directions = deque(['Up', 'Right', 'Down', 'Left'])
-        print self.expand_directions
         self.start_x = x
         self.start_y = y
         self.index = 1
@@ -405,6 +403,7 @@ class Gas(Weapons): #Ej implementerat än
 
 
     def handle_collision(self, rat):
+        self.game.score += 1
         rat.delete()
 
 
@@ -418,8 +417,9 @@ class Terminator(Weapons, Rat): #Terminator-råttor ärver från både Weapons o
         self.dirty = 2
 
     def handle_collision(self, rat):
-        if rat.type == 'Rat': #Om terminatorn kolliderar med en råtta, döda råttan
+        if isinstance(rat, EnemyRat): #Om terminatorn kolliderar med en råtta, döda råttan
             self.kills_left -= 1
+            self.game.score += 1
             rat.delete()
             self.play_sound()
             if self.kills_left <= 0: #
@@ -429,7 +429,7 @@ class Terminator(Weapons, Rat): #Terminator-råttor ärver från både Weapons o
         Rat.update(self)
 
 
-class Change_gender_male(Weapons): #Byter kön på en råtta, och gör en terminator-råtta till en vanlig råtta
+class ChangeGenderMale(Weapons): #Byter kön på en råtta, och gör en terminator-råtta till en vanlig råtta
     def __init__(self, game, x, y):
         Weapons.__init__(self, game, x, y, 'Change gender male')
 
@@ -440,7 +440,7 @@ class Change_gender_male(Weapons): #Byter kön på en råtta, och gör en termin
             self.delete()
 
 
-class Change_gender_female(Weapons): #Byter kön på en råtta, och gör en terminator-råtta till en vanlig råtta
+class ChangeGenderFemale(Weapons): #Byter kön på en råtta, och gör en terminator-råtta till en vanlig råtta
     def __init__(self, game, x, y):
         Weapons.__init__(self, game, x, y, 'Change gender female')
 
@@ -456,12 +456,14 @@ class Poison(Weapons): #Placeras ut på banan och vid kollision med en råtta s�
         Weapons.__init__(self, game, x, y, 'Poison')
 
     def handle_collision(self, rat):
+        if isinstance(rat, EnemyRat):
+            self.game.score += 1
         rat.delete()
         self.play_sound()
         self.delete()
 
 
-class Stop_sign(Weapons): #Får en råtta att byta riktning
+class StopSign(Weapons): #Får en råtta att byta riktning
     def __init__(self, game, x, y):
         Weapons.__init__(self, game, x, y, 'Stop sign')
         self.hits_left = 5 #Efter 5 kollisioner tas stoppblocket bort
@@ -502,10 +504,12 @@ class Explosion(Weapons):
             self.delete()
 
     def handle_collision(self, obj):
+        if isinstance(obj, EnemyRat):
+            self.game.score += 1
         obj.delete() #Allt som kolliderar med explosionen ska tas bort (både råttor och vapen)
 
 
-class main_menu(object):
+class MainMenu(object):
     def __init__(self):
         self.menu_font = pygame.font.Font(None, 40)
         #    self.help_font = pygame.font.Font(None, 15)
@@ -535,7 +539,7 @@ class main_menu(object):
     #        self.help_item['rect'] = render_rect
         for menu_item in self.menu_text.values():
             render = self.menu_font.render(menu_item['text'], True, black)
-            render_rect = render.get_rect(x = menu_item['x'], y = menu_item['y'])
+            render_rect = render.get_rect(x=menu_item['x'], y=menu_item['y'])
             menu_item['render'] = render
             menu_item['rect'] = render_rect
 
@@ -555,7 +559,8 @@ class main_menu(object):
 
     def handle_mouse(self, mouse_x, mouse_y):
         for menu_item in self.menu_text.values():
-            if menu_item['rect'].x <= mouse_x <= menu_item['rect'].x + menu_item['rect'].x and menu_item['rect'].y <= mouse_y <= menu_item['rect'].y + menu_item['rect'].h:
+            if menu_item['rect'].x <= mouse_x <= menu_item['rect'].x + menu_item['rect'].x\
+            and menu_item['rect'].y <= mouse_y <= menu_item['rect'].y + menu_item['rect'].h:
                 print menu_item['text']
                 if menu_item['text'] == 'Play game':
                     rats = Game()
@@ -564,7 +569,7 @@ class main_menu(object):
                     self.done = True
 
 
-class highscore_screen(object):
+class HighScoreScreen(object):
     pass
 
 
@@ -583,7 +588,7 @@ class Menu_items(pygame.sprite.DirtySprite): #Skapar bilderna i menyn
 
 class Game(object):
     def __init__(self):
-        pygame.mixer.init(frequency = 22050, size = -16, channels = 2, buffer = 4096) #Initierar ljuder
+        pygame.mixer.init(frequency=22050, size=-16, channels=2, buffer=4096) #Initierar ljuder
         self.graphics = {} #Kommer innehålla all grafik
         self.sounds = {}   #Och allt ljud
         self.initialize_graphics() #Metod för att ladda in all grafik
@@ -594,7 +599,7 @@ class Game(object):
         # pygame.mixer.music.play(-1)
         self.board_width = self.board_height = 20 * tile_size #Brädet är 21 tiles högt och brett, och varje tile är 32 x 32 pixlar
 
-    def reset(self, level = 1):
+    def reset(self, level=1):
         self.menu_items = {} #Ett dictionary som kommer innehålla information om vapenikonerna i menyn
         self.level = level   #Vilken nivå 
         self.initialize_menu() #Initiera menyn genom att tilldela menu_items värden
@@ -603,6 +608,7 @@ class Game(object):
         self.child_rat_sprites = pygame.sprite.LayeredDirty()
         self.weapon_sprites = pygame.sprite.LayeredDirty()
         self.tile_sprites = pygame.sprite.LayeredDirty()
+        self.score = 0
         self.done = False #Anger om spelet är slut
         self.create_level() #Skapar banan
         self.initial_population()
@@ -624,7 +630,7 @@ class Game(object):
 
     def initial_population(self):
         for i in range(7):
-            self.create_rat(init = True)
+            self.create_rat(init=True)
 
     def create_level(self): #Skapa en instans av Level, ladda kartan, rita ut blommor
         self.leveltest = Level(self.level, self)
@@ -741,12 +747,13 @@ class Game(object):
         text_items = {
             'Population': {'text': 'Number of rats: {0}'.format(self.male_count + self.female_count), 'x': 680, 'y': 20},
             'Male population': {'text': 'Male: {0}'.format(self.male_count), 'x': 680, 'y': 40},
-            'Female population': {'text': 'Female: {0}'.format(self.female_count), 'x': 680, 'y': 60}}
+            'Female population': {'text': 'Female: {0}'.format(self.female_count), 'x': 680, 'y': 60},
+            'Score' : {'text' : 'Score: {0}'.format(self.score), 'x' : 680, 'y' : 80}}
         for name, info in self.menu_items.iteritems():
             text_items[name] = {'text': str(self.menu_items[name]['amount']), 'x': self.menu_items[name]['x'] + 40, 'y': self.menu_items[name]['y'] + 10}
         for text_item in text_items.values():
             render = self.menu_font.render(text_item['text'], True, white)
-            render_rect = render.get_rect(x = text_item['x'], y = text_item['y'])
+            render_rect = render.get_rect(x=text_item['x'], y=text_item['y'])
             screen.blit(render, render_rect)
 
     def handle_mouse(self, mouse_x, mouse_y): #Hanterar musklick
@@ -762,23 +769,23 @@ class Game(object):
 
     def place_weapon(self, mouse_x, mouse_y): #Placera vapnet på spelplanen
         if self.active_weapon == 'Stop sign':
-            self.weapon_sprites.add(Stop_sign(self, mouse_x, mouse_y)) #Lägg till vapnet i spritegroupen för vapen
+            self.weapon_sprites.add(StopSign(self, mouse_x, mouse_y)) #Lägg till vapnet i spritegroupen för vapen
         #            self.play_sound()
         elif self.active_weapon == 'Poison':
             self.weapon_sprites.add(Poison(self, mouse_x, mouse_y))
         elif self.active_weapon == 'Bomb':
             self.weapon_sprites.add(Bomb(self, mouse_x, mouse_y))
         elif self.active_weapon == 'Change gender male':
-            self.weapon_sprites.add(Change_gender_male(self, mouse_x, mouse_y))
+            self.weapon_sprites.add(ChangeGenderMale(self, mouse_x, mouse_y))
         elif self.active_weapon == 'Change gender female':
-            self.weapon_sprites.add(Change_gender_female(self, mouse_x, mouse_y))
+            self.weapon_sprites.add(ChangeGenderFemale(self, mouse_x, mouse_y))
         elif self.active_weapon == 'Terminator':
             self.weapon_sprites.add(Terminator(self, self.leveltest, mouse_x, mouse_y))
         elif self.active_weapon == 'Nuke':
             self.weapon_sprites.add(Nuke(self, mouse_x, mouse_y))
             self.weapon_sprites.add(Radiation(self, mouse_x - 32, mouse_y - 32))
         elif self.active_weapon == 'Gas source':
-            self.weapon_sprites.add(Gas_source(self, self.leveltest, mouse_x, mouse_y))
+            self.weapon_sprites.add(GasSource(self, self.leveltest, mouse_x, mouse_y))
         self.menu_items[self.active_weapon]['amount'] -= 1 #Minska hur många vapen av den sorten som finns vkar
         if self.menu_items[self.active_weapon]['amount'] == 0: #Om det var det sista vapnet, så finns inte längre något aktivt vapen
             self.active_weapon = None
@@ -821,7 +828,7 @@ class Game(object):
             #            pygame.display.update(menu_rects)
             ##
             #            pygame.display.update(self.active_rectangle)
-            pygame.display.flip()
+            pygame.display.update()
             self.check_game_over()
             if self.win:
                 self.done = True
@@ -835,7 +842,7 @@ class Game(object):
         elif population <= 0:
             self.win = True
 
-    def create_rat(self, x = 0, y = 0, init = False, set_gender = None, isAdult = False, direction = None): #Metod för att skapa nya råttor (lite rörig just nu)
+    def create_rat(self, x=0, y=0, init=False, set_gender=None, isAdult=False, direction=None): #Metod för att skapa nya råttor (lite rörig just nu)
         if init: #Om det är spelstart
             while self.leveltest.is_wall(x, y): #Så länge som startposition är en vägg
                 x, y = random.randrange(21), random.randrange(21) #Slumpa fram nya index
@@ -845,7 +852,7 @@ class Game(object):
         if not direction: #Om råttan inte har en riktning, måste vi placera den rakt över en tile så att en riktning kan beräknas
             x = x - (x % 32)
             y = y - (y % 32)
-        rat = basic_rat(self, self.leveltest, x, y, isAdult, gender = set_gender, direction = direction) #Skapa råttan
+        rat = EnemyRat(self, self.leveltest, x, y, isAdult, gender=set_gender, direction=direction) #Skapa råttan
         if not rat.adult: #Om det är ett barn
             self.child_rat_sprites.add(rat) #Lägg till i gruppen för barnsprites
             self.play_sound('Birth')
@@ -861,23 +868,24 @@ class Game(object):
             mate_hit = pygame.sprite.groupcollide(self.female_rat_sprites, self.male_rat_sprites, False, False) #Kolla om några manliga och kvinnliga råttor kolliderar
             for female, males in mate_hit.iteritems():
                 for male in males:
-                    female.check_mate(male) #Om de gör det, så kör metoden för att kolla om råttan ska bli gravid
+                    if female in self.female_rat_sprites and male in self.male_rat_sprites:
+                        female.check_mate(male) #Om de gör det, så kör metoden för att kolla om råttan ska bli gravid
             weapon_male_hit = pygame.sprite.groupcollide(self.weapon_sprites, self.male_rat_sprites, False, False)
             for weapon, males in weapon_male_hit.iteritems(): #Kolla om några manliga råttor kolliderar, och hantera kollisionen då
                 for male in males:
-                    if weapon in self.weapon_sprites:
+                    if weapon in self.weapon_sprites and male in self.male_rat_sprites:
                         weapon.handle_collision(male)
 
         elif pygame.time.get_ticks() - self.collision_time > 25:
             weapon_female_hit = pygame.sprite.groupcollide(self.weapon_sprites, self.female_rat_sprites, False, False) #Kvinnliga -> vapen
             for weapon, females in weapon_female_hit.iteritems():
                 for female in females:
-                    if weapon in self.weapon_sprites:
+                    if weapon in self.weapon_sprites and female in self.female_rat_sprites:
                         weapon.handle_collision(female)
             weapon_child_hit = pygame.sprite.groupcollide(self.weapon_sprites, self.child_rat_sprites, False, False) #Barn ->
             for weapon, children in weapon_child_hit.iteritems():
                 for child in children:
-                    if weapon in self.weapon_sprites:
+                    if weapon in self.weapon_sprites and child in self.child_rat_sprites:
                         weapon.handle_collision(child)
             weapon_weapon_hit = pygame.sprite.groupcollide(self.weapon_sprites, self.weapon_sprites, False, False) #Vapen -> Vapen
             for weapon1, weapons in weapon_weapon_hit.iteritems():
@@ -889,7 +897,7 @@ class Game(object):
                     elif weapon1.type == 'Weapon' and weapon2.name == 'Terminator':
                         if weapon1.name == 'Change gender male' or weapon1.name == 'Change gender female': #Om ena vapnet är könsbyte och andra är terminator, gör om terminatorn till vanlig
                             gender = 'M' if weapon1.name == 'Change gender male' else 'F'
-                            self.create_rat(weapon2.rect.x, weapon2.rect.y, isAdult = True, direction = weapon2.direction, set_gender = gender)
+                            self.create_rat(weapon2.rect.x, weapon2.rect.y, isAdult=True, direction=weapon2.direction, set_gender=gender)
                             weapon2.delete()
                             weapon1.delete()
                         else:
@@ -934,6 +942,6 @@ class Game(object):
 #rats = Game()
 #rats.main_loop()
 #pygame.quit()
-test = main_menu()
+test = MainMenu()
 test.main()
 pygame.quit()
