@@ -944,6 +944,7 @@ class Game(object):
 #rats = Game()
 #rats.main_loop()
 #pygame.quit()
-test = MainMenu()
-test.main()
+
+rats = MainMenu()
+rats.main()
 pygame.quit()
