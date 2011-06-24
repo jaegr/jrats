@@ -16,6 +16,8 @@ import glob
 #TODO       Font caching, dictionary?, rendera inte fonten varje tick
 #TODO       Fler tiles, slumpmässigt? Variera gräst och path-tiles?
 #TODO       Game states - main menu, game over screen, win screen. Win screen - try-except vid inladdning av bana, ingen sån bana - win screen?
+#TODO       kolla på updatering av rektanglar, dirty rectangles?
+#TODO       optimera kollisionsdetektering?
 #BUG        kollision vid placering ovanpå råttor
 black = (   0, 0, 0)
 white = ( 255, 255, 255)
