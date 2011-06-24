@@ -414,7 +414,7 @@ class Terminator(Weapons, Rat): #Terminator-råttor ärver från både Weapons o
         Weapons.__init__(self, game, x, y, 'Terminator')
         self.level_instance = level #Råttklassen kräver en levelinstans
         self.base_image = self.image #Basbilden, som kommer att roteras
-        Rat.__init__(self)   #Kör Ratklassens __init__
+        Rat.__init__(self)  #Kör Ratklassens __init__
         self.kills_left = 5 #Hur många råttor den kan döda innan den dör själv
         self.dirty = 2
 
