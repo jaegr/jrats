@@ -530,7 +530,7 @@ class MainMenu(object):
                           'Exit': {'text': 'Exit', 'x': 650, 'y': 400}}
 
         self.done = False
-        self.image = pygame.image.load(os.path.join('data', 'main.png')).convert_alpha()
+        self.image = pygame.image.load(os.path.join('data', 'images', 'main.png')).convert_alpha()
         self.rect = self.image.get_rect()
         self.initialize_text()
 
@@ -647,36 +647,36 @@ class Game(object):
 
     def load_tileset(self):
         self.tileset = self.leveltest.tile_set
-        self.graphics['Path'] = [pygame.image.load(os.path.join('data', self.tileset, '{0}.png'.format(i))).convert_alpha() for i in range(15)]
-        self.graphics['Wall'] = [pygame.image.load(tile_path) for tile_path in glob.glob(os.path.join('data', self.tileset, 'wall*.png'))]
-        self.graphics['Decorations'] = [pygame.image.load(tile_path) for tile_path in glob.glob(os.path.join('data', self.tileset, 'decoration*.png'))]
+        self.graphics['Path'] = [pygame.image.load(os.path.join('data', 'images', self.tileset, '{0}.png'.format(i))).convert_alpha() for i in range(15)]
+        self.graphics['Wall'] = [pygame.image.load(tile_path) for tile_path in glob.glob(os.path.join('data', 'images', self.tileset, 'wall*.png'))]
+        self.graphics['Decorations'] = [pygame.image.load(tile_path) for tile_path in glob.glob(os.path.join('data', 'images', self.tileset, 'decoration*.png'))]
 
     def initialize_graphics(self): #Ladda in all grafik
-        self.graphics['Stop sign'] = pygame.image.load(os.path.join('data', 'stop.png')).convert_alpha()
-        self.graphics['Poison'] = pygame.image.load(os.path.join('data', 'poison.png')).convert_alpha()
-        self.graphics['Male rat'] = pygame.image.load(os.path.join('data', 'male.png')).convert_alpha()
-        self.graphics['Female rat'] = pygame.image.load(os.path.join('data', 'female.png')).convert_alpha()
-        self.graphics['Baby rat'] = pygame.image.load(os.path.join('data', 'baby_rat.png')).convert_alpha()
-        self.graphics['Terminator'] = pygame.image.load(os.path.join('data', 'terminator.png')).convert_alpha()
-        self.graphics['Bomb'] = pygame.image.load(os.path.join('data', 'bomb.png')).convert_alpha()
-        self.graphics['Explosion'] = pygame.image.load(os.path.join('data', 'explosion.png')).convert_alpha()
-        self.graphics['Change gender male'] = pygame.image.load(os.path.join('data', 'gender_male.png')).convert_alpha()
-        self.graphics['Change gender female'] = pygame.image.load(os.path.join('data', 'gender_female.png')).convert_alpha()
-        self.graphics['Nuke'] = pygame.image.load(os.path.join('data', 'nuke.png')).convert_alpha()
-        self.graphics['Radiation'] = pygame.image.load(os.path.join('data', 'radiation.png')).convert_alpha()
-        self.graphics['Gas'] = pygame.image.load(os.path.join('data', 'gas.png')).convert_alpha()
-        self.graphics['Gas source'] = pygame.image.load(os.path.join('data', 'gas_source.png')).convert_alpha()
+        self.graphics['Stop sign'] = pygame.image.load(os.path.join('data', 'images', 'stop.png')).convert_alpha()
+        self.graphics['Poison'] = pygame.image.load(os.path.join('data', 'images', 'poison.png')).convert_alpha()
+        self.graphics['Male rat'] = pygame.image.load(os.path.join('data', 'images', 'male.png')).convert_alpha()
+        self.graphics['Female rat'] = pygame.image.load(os.path.join('data', 'images', 'female.png')).convert_alpha()
+        self.graphics['Baby rat'] = pygame.image.load(os.path.join('data', 'images', 'baby_rat.png')).convert_alpha()
+        self.graphics['Terminator'] = pygame.image.load(os.path.join('data', 'images', 'terminator.png')).convert_alpha()
+        self.graphics['Bomb'] = pygame.image.load(os.path.join('data', 'images', 'bomb.png')).convert_alpha()
+        self.graphics['Explosion'] = pygame.image.load(os.path.join('data', 'images', 'explosion.png')).convert_alpha()
+        self.graphics['Change gender male'] = pygame.image.load(os.path.join('data', 'images', 'gender_male.png')).convert_alpha()
+        self.graphics['Change gender female'] = pygame.image.load(os.path.join('data', 'images', 'gender_female.png')).convert_alpha()
+        self.graphics['Nuke'] = pygame.image.load(os.path.join('data', 'images', 'nuke.png')).convert_alpha()
+        self.graphics['Radiation'] = pygame.image.load(os.path.join('data', 'images', 'radiation.png')).convert_alpha()
+        self.graphics['Gas'] = pygame.image.load(os.path.join('data', 'images', 'gas.png')).convert_alpha()
+        self.graphics['Gas source'] = pygame.image.load(os.path.join('data', 'images', 'gas_source.png')).convert_alpha()
 
     def initialize_sounds(self): #ladda in allt ljud
         try:
-            self.sounds['Nuke'] = pygame.mixer.Sound(os.path.join('data', 'nuke.wav'))
-            self.sounds['Mate'] = pygame.mixer.Sound(os.path.join('data', 'mate.wav'))
-            self.sounds['Explosion'] = pygame.mixer.Sound(os.path.join('data', 'explosion.wav'))
-            self.sounds['Birth'] = pygame.mixer.Sound(os.path.join('data', 'birth.wav'))
-            self.sounds['Change gender'] = pygame.mixer.Sound(os.path.join('data', 'gender.wav'))
-            self.sounds['Poison'] = pygame.mixer.Sound(os.path.join('data', 'poison.wav'))
-            self.sounds['Terminator'] = pygame.mixer.Sound(os.path.join('data', 'terminator.wav'))
-            self.sounds['Gas source'] = pygame.mixer.Sound(os.path.join('data', 'gas.wav'))
+            self.sounds['Nuke'] = pygame.mixer.Sound(os.path.join('data', 'sounds', 'nuke.wav'))
+            self.sounds['Mate'] = pygame.mixer.Sound(os.path.join('data', 'sounds', 'mate.wav'))
+            self.sounds['Explosion'] = pygame.mixer.Sound(os.path.join('data','sounds', 'explosion.wav'))
+            self.sounds['Birth'] = pygame.mixer.Sound(os.path.join('data', 'sounds', 'birth.wav'))
+            self.sounds['Change gender'] = pygame.mixer.Sound(os.path.join('data', 'sounds', 'gender.wav'))
+            self.sounds['Poison'] = pygame.mixer.Sound(os.path.join('data', 'sounds', 'poison.wav'))
+            self.sounds['Terminator'] = pygame.mixer.Sound(os.path.join('data', 'sounds', 'terminator.wav'))
+            self.sounds['Gas source'] = pygame.mixer.Sound(os.path.join('data', 'sounds', 'gas.wav'))
         except pygame.error as e:
             print e
             #   quit()
@@ -941,9 +941,6 @@ class Game(object):
 #
 #        except:
 #            traceback.print_exc(sys.stderr)
-#rats = Game()
-#rats.main_loop()
-#pygame.quit()
 
 rats = MainMenu()
 rats.main()
