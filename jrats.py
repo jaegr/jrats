@@ -39,8 +39,9 @@ class Rat(pygame.sprite.DirtySprite): #Huvudklassen för alla råttor. Vanliga r
         pygame.sprite.DirtySprite.__init__(self)
         self.directions = {'N': 1, 'S': -1, 'E': 2, 'W': -2} #Vilken riktning som råttorna ska gå. Heltal gör det enkelt att vända om (-self.direction)
         self.rotation = {1: 0, -1: 180, 2: 270, -2: 90}     #Hur många grader bilden på råttan ska roteras. Motsvarar samma heltal som i self.directions
+        self.direction_timer = []
         if not direction:    #När barn blir vuxna, eller råttor byter kön så skapas en ny sprite, och den spriten ska ha samma riktning som den "gamla"
-            self.direction = random.choice(self.get_directions()) #Om de inte har någon gammal riktning (t.ex. råttorna som skapas vid spelstart) tilldelas en riktning
+            self.direction = random.choice(self.level_instance.get_directions(self.rect.x, self.rect.y)) #Om de inte har någon gammal riktning (t.ex. råttorna som skapas vid spelstart) tilldelas en riktning
         else:
             self.direction = direction
         self.dirty = 2       #Råttorna ska alltid ritas om. DirtySprite på råttorna ger ingen direkt fördel, utan är mest för att stämma överens med vapen-sprite:arna
@@ -55,7 +56,7 @@ class Rat(pygame.sprite.DirtySprite): #Huvudklassen för alla råttor. Vanliga r
         elif self.direction == self.directions['W']:
             self.rect.x -= 1
         if self.rect.x % tile_size == 0 and self.rect.y % tile_size == 0: #Om råttan är mitt på en tile måste vi kolla vilka riktningar som är tillgängliga
-            available_paths = self.get_directions() #Vi lägger in alla tillgängliga riktningar som get_directions() returnerar i en lista
+            available_paths = self.level_instance.get_directions(self.rect.x, self.rect.y) #Vi lägger in alla tillgängliga riktningar som get_directions() returnerar i en lista
             if -self.direction in available_paths:
                 available_paths.remove(-self.direction) #Råttan ka inte gå tillbaka samma väg som den kom ifrån, så ta bort den från möjliga riktningar
             if not len(available_paths): #Men om det är en återvändsgränd (dvs längden på alla möjliga riktningar är 0)
@@ -63,21 +64,18 @@ class Rat(pygame.sprite.DirtySprite): #Huvudklassen för alla råttor. Vanliga r
             else:
                 self.direction = random.choice(available_paths) #Annars välj en slumpvis väg
         self.image = pygame.transform.rotate(self.base_image, self.rotation[self.direction]) #Rotera bilden så den överensstämmer med riktningen
+        for index, items in enumerate(self.direction_timer):
+                if pygame.time.get_ticks() - items[1] > 500:
+                    self.direction_timer.pop(index)
 
-    def get_directions(self): #Kollar möjliga riktningar
-        available_paths = []
-        if not self.level_instance.is_wall(self.rect.x / tile_size, (self.rect.y - tile_size) / tile_size): #Kollar om tilen rakt ovanför, till vänster, höger eller rakt nedan
-            available_paths.append(self.directions['N'])                                                    # är en vägg. I sådana fall, lägg inte till den riktningen
-        if not self.level_instance.is_wall(self.rect.x / tile_size, (self.rect.y + tile_size) / tile_size): #i listan
-            available_paths.append(self.directions['S'])
-        if not self.level_instance.is_wall((self.rect.x + tile_size) / tile_size, self.rect.y / tile_size):
-            available_paths.append(self.directions['E'])
-        if not self.level_instance.is_wall((self.rect.x - tile_size) / tile_size, self.rect.y / tile_size):
-            available_paths.append(self.directions['W'])
-        return available_paths
-
-    def change_direction(self): #Sätt riktning till motsatt riktning
-        self.direction = -self.direction
+    def change_direction(self, weapon = None): #Sätt riktning till motsatt riktning
+        if isinstance(weapon, StopSign) or isinstance(weapon, Bomb):
+            for items in self.direction_timer:
+                if weapon == items[0]:
+                    return 0
+            self.direction_timer.append([weapon, pygame.time.get_ticks()])
+            self.direction = -self.direction
+            return 1
 
     def delete(self): #Ta bort råttan från spritegroupen (och därmed från spelet)
         self.kill()
@@ -129,14 +127,11 @@ class EnemyRat(Rat):
             self.pregnant = True
             self.time_since_baby = pygame.time.get_ticks() #En timer bestämmer när råttorna ska börja födas
             self.babies_left = 5 #Råttorna föder fem barn
-            print 'pregnant!'
         elif pygame.time.get_ticks() - self.time_since_baby > 4000 and self.pregnant: #Ett barn föds var fjärde sekund
-            print 'baby born! babies left:', self.babies_left
             self.time_since_baby = pygame.time.get_ticks() #Återställ timern
             self.game.create_rat(x=self.rect.x, y=self.rect.y) #Skapa barnet på samma position som mamman
             self.babies_left -= 1 #Minska hur många barn som är kvar att föda
             if self.babies_left <= 0: #Om råttan har fött alla barn
-                print 'no more babies'
                 self.pregnant = False #Så är den inte gravid längre
 
     def set_sterile(self): #Gör råttan steril
@@ -187,6 +182,7 @@ class Level(object):
         self.game = game
         self.level = level
         self.tile_set = ''
+        self.directions = {'N': 1, 'S': -1, 'E': 2, 'W': -2}
 
     def load_map(self, filename=os.path.join('data', 'map.txt')):
         parser = ConfigParser.ConfigParser() #ConfigParser gör det smidigt att läsa in banor från textfiler
@@ -197,6 +193,20 @@ class Level(object):
 
     def load_tile_map(self):
         self.tile_map = [[Tile(self.game, x, y, col, self.check_neighbors(x, y)) for x, col in enumerate(row)] for y, row in enumerate(self.map)]
+
+    def get_directions(self, x, y):
+        available_paths = []
+        x = x / tile_size
+        y = y / tile_size
+        if not self.is_wall(x, y - 1) and y - 1 > 0: #Kollar om tilen rakt ovanför, till vänster, höger eller rakt nedan
+            available_paths.append(self.directions['N'])                                                    # är en vägg. I sådana fall, lägg inte till den riktningen
+        if not self.is_wall(x, y + 1) and y + 1 < 20: #i listan
+            available_paths.append(self.directions['S'])
+        if not self.is_wall(x + 1, y) and x + 1 < 20:
+            available_paths.append(self.directions['E'])
+        if not self.is_wall(x - 1, y) and x - 1 > 0:
+            available_paths.append(self.directions['W'])
+        return available_paths
 
     def find_lanes(self, rect): #Kollar vilka rader och kolumner som explosionen kan expandera i.
         tile_x = rect.x / tile_size #Bombens x och y-koordinater divideras med tile_size (32) för få rätt index i self.map
@@ -471,10 +481,11 @@ class StopSign(Weapons): #Får en råtta att byta riktning
         self.hits_left = 5 #Efter 5 kollisioner tas stoppblocket bort
 
     def handle_collision(self, rat):
-        self.hits_left -= 1
-        if self.hits_left <= 0:
-            self.delete()
-        rat.change_direction() #Kör råttans change direction-metod
+        if rat.change_direction(self): #Kör råttans change direction-metod
+            self.hits_left -= 1
+            if self.hits_left <= 0:
+                self.delete()
+
 
 
 class Bomb(Weapons): #En bomb exploderar efter 3 sekunder och skapar en explosion
@@ -485,7 +496,7 @@ class Bomb(Weapons): #En bomb exploderar efter 3 sekunder och skapar en explosio
         self.exploded = False #Används i gameklassen för att kolla om bomben har exploderat. I så fall skapas explosionssprites
 
     def handle_collision(self, rat):
-        rat.change_direction() #Råttan byter riktning vid kollision med bomben
+        rat.change_direction(self) #Råttan byter riktning vid kollision med bomben
 
     def update(self):
         if pygame.time.get_ticks() - self.start_countdown > 1000: #Varje sekunder räknas timern ner
@@ -621,7 +632,6 @@ class Game(object):
         self.population_frame = pygame.Rect(700, 650, 50, -200) #Ramen runt mätaren
         # font = pygame.font.match_font('arial')
         self.menu_font = pygame.font.Font(None, 18) #Initierar texten i menyn
-        #        self.gameover_font = pygame.font.Font(None, 200)
         self.win = False
         self.active_rectangle = pygame.Rect(0, 0, 0, 0) #Rektangeln som ritas ut runt det aktiva vapnet
         self.lost = False
@@ -738,14 +748,6 @@ class Game(object):
 
 
     def process_text(self): #Hanterar all text
-    #        if self.win:
-    #            win_text = self.gameover_font.render('You won!', True, white)
-    #            win_textRect = win_text.get_rect(x = 50, y = 250)
-    #            screen.blit(win_text, win_textRect)
-    #        elif self.lost:
-    #            lost_text = self.gameover_font.render('Game over!', True, white)
-    #            lost_textRect = lost_text.get_rect(x = 20, y = 250)
-    #            screen.blit(lost_text, lost_textRect)
         text_items = {
             'Population': {'text': 'Number of rats: {0}'.format(self.male_count + self.female_count), 'x': 680, 'y': 20},
             'Male population': {'text': 'Male: {0}'.format(self.male_count), 'x': 680, 'y': 40},
