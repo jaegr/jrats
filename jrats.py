@@ -17,7 +17,8 @@ import glob
 #TODO       powerups
 #TODO       egen musik? glob.glob(os.path.join('data', 'sounds', 'music', '*')) ?
 #TODO       ost?
-#BUG        kollision vid placering ovanpå råttor
+#TODO       bättre lösning för att spara banor
+#BUG        gas i små utrymmen
 black = (   0, 0, 0)
 white = ( 255, 255, 255)
 green = (   0, 255, 0)
@@ -176,19 +177,32 @@ class Tile(pygame.sprite.DirtySprite):
 
 
 class Level(object):
-    def __init__(self, level, game): #level är startnivån (dvs. 1)
+    def __init__(self, level, game, editor_map): #level är startnivån (dvs. 1)
         self.map = []
+        self.editor_map = editor_map
         self.game = game
         self.level = level
         self.tile_set = ''
         self.directions = {'N': 1, 'S': -1, 'E': 2, 'W': -2}
 
     def load_map(self, filename=os.path.join('data', 'map.txt')):
-        parser = ConfigParser.ConfigParser() #ConfigParser gör det smidigt att läsa in banor från textfiler
-        parser.read(filename) #Läs in map.txt
-        self.tile_set = parser.get('level{0}'.format(self.level), 'tileset')
-        for row in parser.get('level{0}'.format(self.level), 'map').split(): #Och läs in map under rubriken level{nivå}
-            self.map.append(list(row)) #Raderna görs om till en lista och läggs till i self.map
+        if not self.editor_map:
+            parser = ConfigParser.ConfigParser() #ConfigParser gör det smidigt att läsa in banor från textfiler
+            parser.read(filename) #Läs in map.txt
+            self.tile_set = parser.get('level{0}'.format(self.level), 'tileset')
+            for row in parser.get('level{0}'.format(self.level), 'map').split(): #Och läs in map under rubriken level{nivå}
+                self.map.append(list(row)) #Raderna görs om till en lista och läggs till i self.map
+        else:
+            self.map = self.editor_map
+            dir = os.path.join('data', 'images')
+            print dir
+            available_tilesets = []
+            for name in os.listdir(dir):
+                print os.path.isdir(name)
+                if os.path.isdir(os.path.join(dir, name)):
+                    available_tilesets.append(name)
+            self.tile_set = random.choice(available_tilesets)
+
 
     def load_tile_map(self):
         self.tile_map = [[Tile(self.game, x, y, col, self.check_neighbors(x, y)) for x, col in enumerate(row)] for y, row in enumerate(self.map)]
@@ -366,6 +380,9 @@ class GasSource(Weapons):
                 self.expand_directions.rotate(-1)
                 if self.expand_directions[0] == 'Up':
                     self.initial_gas = False
+                    if len(self.gas_clouds) == 0: #Om det inte finns utrymme att släppa ut gasen
+                        self.delete()
+                        return
         else:
             for cloud in self.gas_clouds:
                 available_neighbor_tiles = cloud.check_neighbors()
@@ -382,7 +399,7 @@ class GasSource(Weapons):
                     break
 
     def update(self):
-        if len(self.gas_clouds) > 10:
+        if len(self.gas_clouds) > 10 or pygame.time.get_ticks() - self.gas_timer > 10000:
             self.start_removing = True
         elif len(self.gas_clouds) == 0 and self.start_removing:
             self.delete()
@@ -535,9 +552,10 @@ class MainMenu(object):
         #                            Giftavfall - släpper ut giftig gas som dödar alla som inandas den.
         #                            '''
         #        self.help_item = {'text' : self.help_text, 'x' : 100, 'y': 100}
-        self.menu_text = {'Play': {'text': 'Play game', 'x': 650, 'y': 300},
-                          'Highscore': {'text': 'Highscore', 'x': 650, 'y': 350},
-                          'Exit': {'text': 'Exit', 'x': 650, 'y': 400}}
+        self.menu_text = {'Play': {'text': 'Play game', 'x': 630, 'y': 300},
+                          'Highscore': {'text': 'Highscore', 'x': 630, 'y': 350},
+                          'Editor' : {'text': 'Level editor', 'x': 630, 'y': 400},
+                          'Exit': {'text': 'Exit', 'x': 630, 'y': 450}}
 
         self.done = False
         self.image = pygame.image.load(os.path.join('data', 'images', 'main.png')).convert_alpha()
@@ -572,12 +590,14 @@ class MainMenu(object):
 
     def handle_mouse(self, mouse_x, mouse_y):
         for menu_item in self.menu_text.values():
-            if menu_item['rect'].x <= mouse_x <= menu_item['rect'].x + menu_item['rect'].x\
-            and menu_item['rect'].y <= mouse_y <= menu_item['rect'].y + menu_item['rect'].h:
-                print menu_item['text']
+            rect = menu_item['rect']
+            if rect.x <= mouse_x <= rect.x + rect.x and rect.y <= mouse_y <= rect.y + rect.h:
                 if menu_item['text'] == 'Play game':
                     rats = Game()
                     rats.main_loop()
+                elif menu_item['text'] == 'Level editor':
+                    editor = LevelEditor()
+                    editor.main()
                 elif menu_item['text'] == 'Exit':
                     self.done = True
 
@@ -613,6 +633,86 @@ class HighScoreScreen(object):
         while True:
             self.initialize_text()
 
+class LevelEditor(object):
+    def __init__(self):
+        self.map = []
+        self.done = False
+        self.editor_font = pygame.font.Font(None, 20)
+        self.editor_text = {'Play': {'text': 'Play', 'x': 700, 'y': 200},
+                          'Save': {'text': 'Save', 'x': 700, 'y': 250},
+                          'Clear': {'text': 'Clear', 'x': 700, 'y': 300},
+                          'Exit': {'text': 'Exit', 'x': 700, 'y': 350}}
+        self.tile_size = 32
+        self.initialize_map()
+        self.initialize_text()
+
+    def initialize_text(self):
+        for key in self.editor_text:
+            render = self.editor_font.render(self.editor_text[key]['text'], True, white)
+            rect = render.get_rect(x = self.editor_text[key]['x'], y = self.editor_text[key]['y'])
+            self.editor_text[key]['render'] = render
+            self.editor_text[key]['rect'] = rect
+
+    def initialize_map(self):
+        self.map = [['.' if x != 0 and y != 0 and x != 20 and y != 20 else '#' for x in range(21)] for y in range(21)]
+
+    def save(self):
+        print 'abplb'
+        save_file = open(os.path.join('data', 'temp_map.txt'), 'w+')
+        for row in self.map:
+            save_file.write(''.join(row) + '\n')
+        save_file.close()
+
+
+    def draw_map(self):
+        x = 0
+        y = 0
+        for i, row in enumerate(self.map):
+            for n, col in enumerate(self.map):
+                color = green if self.map[i][n] == '.' else red
+                pygame.draw.rect(screen, color, pygame.Rect(x, y, self.tile_size, self.tile_size))
+                x += self.tile_size
+            y += self.tile_size
+            x = 0
+
+    def draw_text(self):
+        for text_item in self.editor_text.values():
+            screen.blit(text_item['render'], text_item['rect'])
+
+    def handle_mouse(self, mouse_x, mouse_y):
+        aligned_x = mouse_x / self.tile_size
+        aligned_y = mouse_y / self.tile_size
+        if aligned_x < 20 and aligned_y < 20 and aligned_x > 0 and aligned_y > 0:
+            self.map[aligned_y][aligned_x] = '.' if self.map[aligned_y][aligned_x] == '#' else '#'
+        for text_item in self.editor_text.values():
+            rect = text_item['rect']
+            if rect.x <= mouse_x <= rect.x + rect.w and rect.y <= mouse_y <= rect.y + rect.h:
+                self.action(text_item['text'])
+
+    def action(self, key_action):
+        if key_action == 'Play':
+            game = Game(self.map)
+            game.main_loop()
+        elif key_action == 'Save':
+            self.save()
+        elif key_action == 'Clear':
+            self.initialize_map()
+        elif key_action == 'Exit':
+            self.done = True
+
+    def main(self):
+        while not self.done:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.done = True
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    self.handle_mouse(event.pos[0], event.pos[1])
+            screen.fill(black)
+            self.draw_map()
+            self.draw_text()
+            pygame.display.flip()
+
+
 class Menu_items(pygame.sprite.DirtySprite): #Skapar bilderna i menyn
     def __init__(self, game, name, x, y):
         pygame.sprite.DirtySprite.__init__(self)
@@ -627,14 +727,15 @@ class Menu_items(pygame.sprite.DirtySprite): #Skapar bilderna i menyn
 
 
 class Game(object):
-    def __init__(self):
+    def __init__(self, editor_map = None):
         pygame.mixer.init(frequency=22050, size=-16, channels=2, buffer=4096) #Initierar ljuder
         self.graphics = {} #Kommer innehålla all grafik
         self.sounds = {}   #Och allt ljud
         self.initialize_graphics() #Metod för att ladda in all grafik
         self.initialize_sounds()   #Metod för att ladda in allt ljud
+        self.editor_map = editor_map
         self.reset()               #reset innehåller alla som ska återställas vid omstart eller ny bana
-#        pygame.mixer.music.load(os.path.join('data', 'sounds', 'sarabande.ogg'))
+#        pygame.mixer.music.load(os.path.join('data', 'sounds', 'havanagila.mid'))
 #        pygame.mixer.music.set_volume(0.2)
 #        pygame.mixer.music.play(-1)
         self.board_width = self.board_height = 20 * tile_size #Brädet är 21 tiles högt och brett, och varje tile är 32 x 32 pixlar
@@ -673,7 +774,7 @@ class Game(object):
             self.create_rat(init=True)
 
     def create_level(self): #Skapa en instans av Level, ladda kartan, rita ut blommor
-        self.leveltest = Level(self.level, self)
+        self.leveltest = Level(self.level, self, self.editor_map)
         self.leveltest.load_map()
         self.load_tileset()
         self.leveltest.load_tile_map()
@@ -907,10 +1008,12 @@ class Game(object):
             #            pygame.display.update(self.active_rectangle)
             pygame.display.update()
             self.check_game_over()
-            if self.win:
+            if self.win and not self.editor_map:
                 self.done = True
                 self.level += 1
                 self.reset(self.level)
+            elif self.win and self.editor_map:
+                self.done = True
 
     def check_game_over(self): #testmetod
         population = self.male_count + self.female_count
