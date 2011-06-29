@@ -11,13 +11,12 @@ import glob
 #TODO       egna vapen?
 #TODO       balancera svårighetsgrad
 #TODO       svårighetsgrader (easy/normal/hard)?
-#TODO       större bana (öka tiles)
-#TODO       dynamisk fönsterstorlek?
 #TODO       Font caching, dictionary?, rendera inte fonten varje tick
-#TODO       Fler tiles, slumpmässigt? Variera gräst och path-tiles?
 #TODO       Game states - main menu, game over screen, win screen. Win screen - try-except vid inladdning av bana, ingen sån bana - win screen?
-#TODO       kolla på updatering av rektanglar, dirty rectangles?
 #TODO       optimera kollisionsdetektering?
+#TODO       powerups
+#TODO       egen musik? glob.glob(os.path.join('data', 'sounds', 'music', '*')) ?
+#TODO       ost?
 #BUG        kollision vid placering ovanpå råttor
 black = (   0, 0, 0)
 white = ( 255, 255, 255)
@@ -151,7 +150,7 @@ class EnemyRat(Rat):
 class Tile(pygame.sprite.DirtySprite):
     def __init__(self, game, x, y, tile, tile_number):
         pygame.sprite.DirtySprite.__init__(self)
-        self.dirty = 2
+        self.dirty = 1
         self.game = game
         self.tile = tile
         self.tile_number = tile_number
@@ -468,10 +467,10 @@ class Poison(Weapons): #Placeras ut på banan och vid kollision med en råtta s�
         Weapons.__init__(self, game, x, y, 'Poison')
 
     def handle_collision(self, rat):
+        self.play_sound()
         if isinstance(rat, EnemyRat):
             self.game.score += 1
         rat.delete()
-        self.play_sound()
         self.delete()
 
 
@@ -555,6 +554,7 @@ class MainMenu(object):
             render_rect = render.get_rect(x=menu_item['x'], y=menu_item['y'])
             menu_item['render'] = render
             menu_item['rect'] = render_rect
+    #    HighScoreScreen()
 
     def main(self):
         while not self.done:
@@ -583,8 +583,35 @@ class MainMenu(object):
 
 
 class HighScoreScreen(object):
-    pass
+#    try:
+#        with open(os.path.join('data', 'highscore.txt')) as highscore_file:
+#            pass
+#    except IOError:
+#        with open(os.path.join('data', 'highscore.txt')) as new_file:
+#            for i in range(1,11):
+#                new_file.write('{0}. Empty - 0 points')
+    def __init__(self):
+        with open(os.path.join('data', 'highscore.txt')) as hs_file:
+            self.hs_txttable = [line.strip() for line in hs_file]
+        self.hs_font = pygame.font.Font(None, 70)
+        self.hs_font_properties = {}
+        self.hs_font_items = {}
+        self.main()
 
+    def initialize_text(self):
+        text_x = 170
+        text_y = 20
+        screen.fill(black)
+        for n, line in enumerate(self.hs_txttable):
+            render = self.hs_font.render(self.hs_txttable[n], True, white)
+            rect = render.get_rect(x = text_x, y = text_y * (n + 1) * 3)
+        #    print line, render, rect, self.hs_txttable[n]
+            screen.blit(render, rect)
+        pygame.display.flip()
+
+    def main(self):
+        while True:
+            self.initialize_text()
 
 class Menu_items(pygame.sprite.DirtySprite): #Skapar bilderna i menyn
     def __init__(self, game, name, x, y):
@@ -607,9 +634,9 @@ class Game(object):
         self.initialize_graphics() #Metod för att ladda in all grafik
         self.initialize_sounds()   #Metod för att ladda in allt ljud
         self.reset()               #reset innehåller alla som ska återställas vid omstart eller ny bana
-        # pygame.mixer.music.load('Beetlejuice.mid')
-        # pygame.mixer.music.set_volume(0.2)
-        # pygame.mixer.music.play(-1)
+#        pygame.mixer.music.load(os.path.join('data', 'sounds', 'sarabande.ogg'))
+#        pygame.mixer.music.set_volume(0.2)
+#        pygame.mixer.music.play(-1)
         self.board_width = self.board_height = 20 * tile_size #Brädet är 21 tiles högt och brett, och varje tile är 32 x 32 pixlar
 
     def reset(self, level=1):
@@ -621,6 +648,7 @@ class Game(object):
         self.child_rat_sprites = pygame.sprite.LayeredDirty()
         self.weapon_sprites = pygame.sprite.LayeredDirty()
         self.tile_sprites = pygame.sprite.LayeredDirty()
+        self.dirty_tiles = pygame.sprite.LayeredDirty()
         self.score = 0
         self.done = False #Anger om spelet är slut
         self.create_level() #Skapar banan
@@ -687,6 +715,7 @@ class Game(object):
             self.sounds['Poison'] = pygame.mixer.Sound(os.path.join('data', 'sounds', 'poison.wav'))
             self.sounds['Terminator'] = pygame.mixer.Sound(os.path.join('data', 'sounds', 'terminator.wav'))
             self.sounds['Gas source'] = pygame.mixer.Sound(os.path.join('data', 'sounds', 'gas.wav'))
+            self.sounds['Ding'] = pygame.mixer.Sound(os.path.join('data', 'sounds', 'ding.wav'))
         except pygame.error as e:
             print e
             #   quit()
@@ -709,24 +738,67 @@ class Game(object):
         if pygame.time.get_ticks() - self.last_generated_weapon > random.randint(3000, 7000): #Mellan var 3:e och var 7:e sekunder, skapa ett slumpat vapen
             self.menu_items[random.choice(self.menu_items.keys())]['amount'] += 1
             self.last_generated_weapon = pygame.time.get_ticks()
+            self.play_sound('Ding')
+
+    def get_dirty_tiles(self, obj, x, y):
+        self.dirty_tiles.empty()
+        if isinstance(obj, Rat):
+            if obj.direction == 1: #North
+                current_x = x - (x % 32)
+                current_y = y - (y % 32)
+                next_x = x - (x % 32)
+                next_y = y - (y % 32) + 32
+            elif obj.direction == -1: #South
+                current_x = x - (x % 32)
+                current_y = y - (y % 32) + 32
+                next_x = x - (x % 32)
+                next_y = y - (y % 32)
+            elif obj.direction == 2: #East
+                current_x = x - (x % 32) + 32
+                current_y = y - (y % 32)
+                next_x = x - (x % 32)
+                next_y = y - (y % 32)
+            elif obj.direction == -2: #West
+                current_x = x - (x % 32) 
+                current_y = y - (y % 32)
+                next_x = x - (x % 32) + 32
+                next_y = y - (y % 32)
+            tile1 = self.leveltest.tile_map[next_y / 32][next_x / 32]
+            tile2 = self.leveltest.tile_map[current_y / 32][current_x / 32]
+            if not self.dirty_tiles.has(tile1):
+                self.dirty_tiles.add(tile1)
+            if not self.dirty_tiles.has(tile2):
+                self.dirty_tiles.add(tile2)
+        else:
+            x = x - (x % 32)
+            y = y - (x % 32)
+            tile = self.leveltest.tile_map[y / 32][x / 32]
+            if not self.dirty_tiles.has(tile):
+                self.dirty_tiles.add(tile)
+        
 
     def update_sprites(self):
+        self.dirty_tiles.empty()
         self.male_count = 0 #Återställ räkningen av råttor
         self.female_count = 0
         for sprite in self.male_rat_sprites: #För alla råttor, kör deras update-metod och öka på räkningen
             sprite.update()
             self.male_count += 1
+            self.get_dirty_tiles(sprite, sprite.rect.x, sprite.rect.y)
         for sprite in self.female_rat_sprites:
             sprite.update()
             self.female_count += 1
+            self.get_dirty_tiles(sprite, sprite.rect.x, sprite.rect.y)
         for sprite in self.child_rat_sprites:
             sprite.update()
             if sprite.gender == 'M':
                 self.male_count += 1
             else:
                 self.female_count += 1
+            self.get_dirty_tiles(sprite, sprite.rect.x, sprite.rect.y)
         for sprite in self.weapon_sprites: #För varje vapen
             sprite.update() #Kör deras update-metod
+            self.get_dirty_tiles(sprite, sprite.rect.x, sprite.rect.y)
             if sprite.name == 'Bomb' and sprite.exploded: #Om vapnet är en bomb, och det har exploderat
                 self.play_sound('Explosion')
                 explosion_rects = self.leveltest.find_lanes(sprite.rect) #Hitta alla rutor som explosionen kan expandera till
@@ -774,7 +846,6 @@ class Game(object):
     def place_weapon(self, mouse_x, mouse_y): #Placera vapnet på spelplanen
         if self.active_weapon == 'Stop sign':
             self.weapon_sprites.add(StopSign(self, mouse_x, mouse_y)) #Lägg till vapnet i spritegroupen för vapen
-        #            self.play_sound()
         elif self.active_weapon == 'Poison':
             self.weapon_sprites.add(Poison(self, mouse_x, mouse_y))
         elif self.active_weapon == 'Bomb':
@@ -805,8 +876,8 @@ class Game(object):
                     self.done = True
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     self.handle_mouse(event.pos[0], event.pos[1])
-            screen.fill(black)
-            clock.tick(100)
+            screen.fill(black, pygame.Rect(672, 0, 800 - 672, 672))
+            clock.tick(60)
             self.generate_weapons()
             self.update_sprites()
             self.collisions()
@@ -818,10 +889,12 @@ class Game(object):
             #            game_rects.append(self.weapon_sprites.draw(screen))
             #            game_rects.append(self.tile_sprites.draw(screen))
             tile_rects = self.tile_sprites.draw(screen)
+         #   dirty_rects = self.dirty_tiles.draw(screen)
             weapon_rects = self.weapon_sprites.draw(screen)
             male_rects = self.male_rat_sprites.draw(screen) #Räkna ut alla sprite-rektanglar
             female_rects = self.female_rat_sprites.draw(screen)
             child_rects = self.child_rat_sprites.draw(screen)
+
 
             menu_rects = self.menu_sprites.draw(screen)
             self.process_text() #Hantera all text
