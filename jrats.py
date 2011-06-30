@@ -25,6 +25,11 @@ green = (   0, 255, 0)
 red = ( 255, 0, 0)
 blue = (   0, 0, 255)
 yellow = ( 255, 255, 0)
+corn_blue = (100, 149, 237)
+pink = (251, 174, 210)
+mustard = (255, 219, 88)
+gray = (139, 133, 137)
+light_gray = 	(244, 240, 236)
 
 pygame.init()
 pygame.font.init() #initierar textutskrift
@@ -41,12 +46,18 @@ class Rat(pygame.sprite.DirtySprite): #Huvudklassen för alla råttor. Vanliga r
         self.rotation = {1: 0, -1: 180, 2: 270, -2: 90}     #Hur många grader bilden på råttan ska roteras. Motsvarar samma heltal som i self.directions
         self.direction_timer = []
         if not direction:    #När barn blir vuxna, eller råttor byter kön så skapas en ny sprite, och den spriten ska ha samma riktning som den "gamla"
-            self.direction = random.choice(self.level_instance.get_directions(self.rect.x, self.rect.y)) #Om de inte har någon gammal riktning (t.ex. råttorna som skapas vid spelstart) tilldelas en riktning
+            available_directions = self.level_instance.get_directions(self.rect.x, self.rect.y)
+            if not len(available_directions):
+                self.direction = None
+            else:
+                self.direction = random.choice(available_directions) #Om de inte har någon gammal riktning (t.ex. råttorna som skapas vid spelstart) tilldelas en riktning
         else:
             self.direction = direction
         self.dirty = 2       #Råttorna ska alltid ritas om. DirtySprite på råttorna ger ingen direkt fördel, utan är mest för att stämma överens med vapen-sprite:arna
 
     def update(self):
+        if not self.direction: #testkod för instängd råtta
+            return
         if self.direction == self.directions['N']: #Flytta fram råttorna en pixel i dess riktning
             self.rect.y -= 1
         elif self.direction == self.directions['E']:
@@ -669,7 +680,7 @@ class LevelEditor(object):
         y = 0
         for i, row in enumerate(self.map):
             for n, col in enumerate(self.map):
-                color = green if self.map[i][n] == '.' else red
+                color = light_gray if self.map[i][n] == '.' else gray
                 pygame.draw.rect(screen, color, pygame.Rect(x, y, self.tile_size, self.tile_size))
                 x += self.tile_size
             y += self.tile_size
@@ -843,7 +854,7 @@ class Game(object):
 
     def get_dirty_tiles(self, obj, x, y):
         self.dirty_tiles.empty()
-        if isinstance(obj, Rat):
+        if isinstance(obj, Rat) and obj.direction: #kolla direction utifall råttan skulle vara fast i en enskild tile
             if obj.direction == 1: #North
                 current_x = x - (x % 32)
                 current_y = y - (y % 32)
