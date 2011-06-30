@@ -408,9 +408,11 @@ class GasSource(Weapons):
                     self.game.weapon_sprites.add(self.gas_clouds[-1])
                     done = True
                     break
+            else:
+                self.start_removing = True
 
     def update(self):
-        if len(self.gas_clouds) > 10 or pygame.time.get_ticks() - self.gas_timer > 10000:
+        if len(self.gas_clouds) > 10:
             self.start_removing = True
         elif len(self.gas_clouds) == 0 and self.start_removing:
             self.delete()
