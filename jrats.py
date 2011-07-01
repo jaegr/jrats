@@ -19,6 +19,7 @@ import glob
 #TODO       ost?
 #TODO       bättre lösning för att spara banor
 #BUG        sterila barn är inte sterila när de blir vuxna
+#BUG        dubbla stoppskyltar
 black = (   0, 0, 0)
 white = ( 255, 255, 255)
 green = (   0, 255, 0)
@@ -80,7 +81,7 @@ class Rat(pygame.sprite.DirtySprite): #Huvudklassen för alla råttor. Vanliga r
                     self.direction_timer.pop(index)
 
     def change_direction(self, weapon = None): #Sätt riktning till motsatt riktning
-        if isinstance(weapon, StopSign) or isinstance(weapon, Bomb):
+        if isinstance(weapon, StopSign) or isinstance(weapon, Bomb) and self.direction:
             for items in self.direction_timer:
                 if weapon == items[0]:
                     return 0
