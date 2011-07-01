@@ -18,7 +18,7 @@ import glob
 #TODO       egen musik? glob.glob(os.path.join('data', 'sounds', 'music', '*')) ?
 #TODO       ost?
 #TODO       bättre lösning för att spara banor
-#BUG        gas i små utrymmen
+#BUG        sterila barn är inte sterila när de blir vuxna
 black = (   0, 0, 0)
 white = ( 255, 255, 255)
 green = (   0, 255, 0)
@@ -28,7 +28,7 @@ yellow = ( 255, 255, 0)
 corn_blue = (100, 149, 237)
 pink = (251, 174, 210)
 mustard = (255, 219, 88)
-gray = (139, 133, 137)
+dark_gray = (139, 133, 137)
 light_gray = 	(244, 240, 236)
 
 pygame.init()
@@ -373,8 +373,7 @@ class GasSource(Weapons):
         self.index = 1
         self.initial_gas = True
         self.start_removing = False
-        self.basic_directions = {'Up': (0, 32), 'Right': (32, 0), 'Down': (0, -32), 'Left': (-32, 0)}
-        self.directions = {'Up': (0, 32), 'Right': (32, 0), 'Down': (0, -32), 'Left': (-32, 0), 'Up Right': (32, 32), 'Up Left': (-32, 32), 'Down Right': (32, -32), 'Down Left': (-32, -32)}
+        self.directions = {'Up': (0, 32), 'Right': (32, 0), 'Down': (0, -32), 'Left': (-32, 0)}
         self.gas_clouds = []
         self.play_sound()
 
@@ -414,17 +413,20 @@ class GasSource(Weapons):
     def update(self):
         if len(self.gas_clouds) > 10:
             self.start_removing = True
-        elif len(self.gas_clouds) == 0 and self.start_removing:
-            self.delete()
         if pygame.time.get_ticks() - self.gas_timer > 100 and not self.start_removing:
             self.add_gas()
             self.gas_timer = pygame.time.get_ticks()
-        elif self.start_removing and pygame.time.get_ticks() - self.gas_timer > 100:
+        elif self.start_removing:
+            self.remove_gas()
+
+    def remove_gas(self):
+        if pygame.time.get_ticks() - self.gas_timer > 100:
             gas_cloud = random.choice(self.gas_clouds)
             gas_cloud.delete()
             self.gas_clouds.remove(gas_cloud)
             self.gas_timer = pygame.time.get_ticks()
-
+        elif not len(self.gas_clouds):
+            self.delete()
 
 class Gas(Weapons): #Ej implementerat än
     def __init__(self, game, x, y, gas_source, level):
@@ -658,6 +660,8 @@ class LevelEditor(object):
         self.tile_size = 32
         self.initialize_map()
         self.initialize_text()
+        self.motion = False
+        self.active_tile = None
 
     def initialize_text(self):
         for key in self.editor_text:
@@ -682,7 +686,7 @@ class LevelEditor(object):
         y = 0
         for i, row in enumerate(self.map):
             for n, col in enumerate(self.map):
-                color = light_gray if self.map[i][n] == '.' else gray
+                color = light_gray if self.map[i][n] == '.' else dark_gray
                 pygame.draw.rect(screen, color, pygame.Rect(x, y, self.tile_size, self.tile_size))
                 x += self.tile_size
             y += self.tile_size
@@ -696,7 +700,9 @@ class LevelEditor(object):
         aligned_x = mouse_x / self.tile_size
         aligned_y = mouse_y / self.tile_size
         if aligned_x < 20 and aligned_y < 20 and aligned_x > 0 and aligned_y > 0:
-            self.map[aligned_y][aligned_x] = '.' if self.map[aligned_y][aligned_x] == '#' else '#'
+            if not self.active_tile:
+                self.active_tile = '.' if self.map[aligned_y][aligned_x] == '#' else '#'
+            self.map[aligned_y][aligned_x] = self.active_tile
         for text_item in self.editor_text.values():
             rect = text_item['rect']
             if rect.x <= mouse_x <= rect.x + rect.w and rect.y <= mouse_y <= rect.y + rect.h:
@@ -720,6 +726,12 @@ class LevelEditor(object):
                     self.done = True
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     self.handle_mouse(event.pos[0], event.pos[1])
+                if event.type == pygame.MOUSEMOTION and event.buttons[0]:
+                    self.motion = True
+                    self.handle_mouse(event.pos[0], event.pos[1])
+                elif self.motion:
+                    self.active_tile = None
+                    self.motion = False
             screen.fill(black)
             self.draw_map()
             self.draw_text()
