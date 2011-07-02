@@ -18,6 +18,7 @@ import glob
 #TODO       egen musik? glob.glob(os.path.join('data', 'sounds', 'music', '*')) ?
 #TODO       ost?
 #TODO       bättre lösning för att spara banor
+#TODO       sommartileset
 #BUG        sterila barn är inte sterila när de blir vuxna
 #BUG        dubbla stoppskyltar
 black = (   0, 0, 0)
@@ -94,7 +95,7 @@ class Rat(pygame.sprite.DirtySprite): #Huvudklassen för alla råttor. Vanliga r
 
 
 class EnemyRat(Rat):
-    def __init__(self, game, level, x=32, y=32, isAdult=True, gender=None, direction=None): #Vanliga råttor
+    def __init__(self, game, level, x=32, y=32, isAdult=True, gender=None, direction=None, sterile = False): #Vanliga råttor
         self.level_instance = level #Ta emot levelinstansen (som krävs för att bestämma riktningar)
         self.game = game            #Gameklassens instans krävs bl.a. för att byta kön eftersom den skapar en ny råtta av motsatt kön
         if gender is None:          #Om råttans kön inte redan är bestäms, välj ett slumpvis
@@ -117,7 +118,7 @@ class EnemyRat(Rat):
         self.rect.y = y
         self.time_since_baby = 0  #Hur länge sen en gravid råtta födde barn
         self.babies_left = 0      #Hur många barn som ska födas
-        self.sterile = False      #Råttorna blir sterila om de utsätts för strålning, men de föds aldrig som sterila
+        self.sterile = sterile      #Råttorna blir sterila om de utsätts för strålning, men de föds aldrig som sterila
         self.birth = pygame.time.get_ticks()  #Hur länge sen de föddes. Barn blir vuxna efter 10 sekunder.
         Rat.__init__(self, direction) #Kör huvudklassens __init__
         print self.gender, self.adult, self.direction, self.pregnant, self.sterile, self.name, self.type
@@ -125,7 +126,7 @@ class EnemyRat(Rat):
     def change_gender(self): #Skapar en ny råttsprite vid könbyte. 
         new_gender = 'M' if self.gender == 'F' else 'F'
         self.game.create_rat(x=self.rect.x, y=self.rect.y, set_gender=new_gender,
-                             isAdult=self.adult, direction=self.direction)
+                             isAdult=self.adult, direction=self.direction, sterile = self.sterile)
         self.delete()
 
 
@@ -156,7 +157,7 @@ class EnemyRat(Rat):
 
         if not self.adult: #Om det är ett barn, och de har gått mer än 10 sekunder sen födseln, skapa en ny, vuxen, råtta med rätt kön
             if pygame.time.get_ticks() - self.birth > 10000:
-                self.game.create_rat(x=self.rect.x, y=self.rect.y, set_gender=self.gender, isAdult=True, direction=self.direction)
+                self.game.create_rat(x=self.rect.x, y=self.rect.y, set_gender=self.gender, isAdult=True, direction=self.direction, sterile = self.sterile)
                 self.delete()
 
 
@@ -1048,7 +1049,7 @@ class Game(object):
         elif population <= 0:
             self.win = True
 
-    def create_rat(self, x=0, y=0, init=False, set_gender=None, isAdult=False, direction=None): #Metod för att skapa nya råttor (lite rörig just nu)
+    def create_rat(self, x=0, y=0, init=False, set_gender=None, isAdult=False, direction=None, sterile = False): #Metod för att skapa nya råttor (lite rörig just nu)
         if init: #Om det är spelstart
             while self.leveltest.is_wall(x, y): #Så länge som startposition är en vägg
                 x, y = random.randrange(21), random.randrange(21) #Slumpa fram nya index
@@ -1058,7 +1059,7 @@ class Game(object):
         if not direction: #Om råttan inte har en riktning, måste vi placera den rakt över en tile så att en riktning kan beräknas
             x = x - (x % 32)
             y = y - (y % 32)
-        rat = EnemyRat(self, self.leveltest, x, y, isAdult, gender=set_gender, direction=direction) #Skapa råttan
+        rat = EnemyRat(self, self.leveltest, x, y, isAdult, gender=set_gender, direction=direction, sterile = sterile) #Skapa råttan
         if not rat.adult: #Om det är ett barn
             self.child_rat_sprites.add(rat) #Lägg till i gruppen för barnsprites
             self.play_sound('Birth')
