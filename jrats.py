@@ -8,19 +8,21 @@ from collections import deque
 import glob
 
 #TODO       win-conditions
-#TODO       egna vapen?
+#TODO       egna vapen
 #TODO       balancera svårighetsgrad
 #TODO       svårighetsgrader (easy/normal/hard)?
 #TODO       Font caching, dictionary?, rendera inte fonten varje tick
-#TODO       Game states - main menu, game over screen, win screen. Win screen - try-except vid inladdning av bana, ingen sån bana - win screen?
+#TODO       Game states - main menu, game over screen, win screen.
 #TODO       optimera kollisionsdetektering?
 #TODO       powerups
 #TODO       egen musik? glob.glob(os.path.join('data', 'sounds', 'music', '*')) ?
 #TODO       ost?
 #TODO       bättre lösning för att spara banor
 #TODO       sommartileset
-#BUG        sterila barn är inte sterila när de blir vuxna
-#BUG        dubbla stoppskyltar
+#TODO       http://archives.seul.org/pygame/users/Jul-2010/msg00063.html
+#BUG        dubbla stoppskyltar - orsakas av att råttan kolliderar med fler en en stoppskylt
+#BUG        gas - dubbla sprites
+#BUG        leveleditor - placera väggar och väg
 black = (   0, 0, 0)
 white = ( 255, 255, 255)
 green = (   0, 255, 0)
@@ -58,7 +60,7 @@ class Rat(pygame.sprite.DirtySprite): #Huvudklassen för alla råttor. Vanliga r
         self.dirty = 2       #Råttorna ska alltid ritas om. DirtySprite på råttorna ger ingen direkt fördel, utan är mest för att stämma överens med vapen-sprite:arna
 
     def update(self):
-        if not self.direction: #testkod för instängd råtta
+        if not self.direction: #Om råttan är instängd
             return
         if self.direction == self.directions['N']: #Flytta fram råttorna en pixel i dess riktning
             self.rect.y -= 1
@@ -98,7 +100,7 @@ class EnemyRat(Rat):
     def __init__(self, game, level, x=32, y=32, isAdult=True, gender=None, direction=None, sterile = False): #Vanliga råttor
         self.level_instance = level #Ta emot levelinstansen (som krävs för att bestämma riktningar)
         self.game = game            #Gameklassens instans krävs bl.a. för att byta kön eftersom den skapar en ny råtta av motsatt kön
-        if gender is None:          #Om råttans kön inte redan är bestäms, välj ett slumpvis
+        if not gender:          #Om råttans kön inte redan är bestäms, välj ett slumpvis
             self.gender = random.choice(['M', 'F'])
         else:
             self.gender = gender   #Annars sätt det som vi fick som inparameter
@@ -121,7 +123,7 @@ class EnemyRat(Rat):
         self.sterile = sterile      #Råttorna blir sterila om de utsätts för strålning, men de föds aldrig som sterila
         self.birth = pygame.time.get_ticks()  #Hur länge sen de föddes. Barn blir vuxna efter 10 sekunder.
         Rat.__init__(self, direction) #Kör huvudklassens __init__
-        print self.gender, self.adult, self.direction, self.pregnant, self.sterile, self.name, self.type
+       # print self.gender, self.adult, self.direction, self.pregnant, self.sterile, self.name, self.type
 
     def change_gender(self): #Skapar en ny råttsprite vid könbyte. 
         new_gender = 'M' if self.gender == 'F' else 'F'
@@ -558,16 +560,6 @@ class Explosion(Weapons):
 class MainMenu(object):
     def __init__(self):
         self.menu_font = pygame.font.Font(None, 40)
-        #    self.help_font = pygame.font.Font(None, 15)
-        #        self.help_text = '''Råttorna invaderar! Döda dem innan de tar över världen!\n\r
-        #                            Stoppskylt - blockerar gångar. Försvinner efter fem träffar.\n\r
-        #                            Råttgift - tillräckligt för att döda en råtta.\n\r
-        #                            Robotråtta - dödar fem råttor innan den dör själv. Påverkas av vapen precis som vanliga råttor.\n\r
-        #                            Bomb - sprängs efter fem sekunder i en stor explosion. Förstör allt i sin väg, inklusive vapen.\n\r
-        #                            Könsbyte - byter kön på råttor, och förvandlar robotråttor till vanliga råttor.\n\r
-        #                            Strålning - gör råttor inom dess radie sterila, så att de inte kan para sig.\n\r
-        #                            Giftavfall - släpper ut giftig gas som dödar alla som inandas den.
-        #                            '''
         #        self.help_item = {'text' : self.help_text, 'x' : 100, 'y': 100}
         self.menu_text = {'Play': {'text': 'Play game', 'x': 630, 'y': 300},
                           'Highscore': {'text': 'Highscore', 'x': 630, 'y': 350},
@@ -578,6 +570,9 @@ class MainMenu(object):
         self.image = pygame.image.load(os.path.join('data', 'images', 'main.png')).convert_alpha()
         self.rect = self.image.get_rect()
         self.initialize_text()
+#        pygame.mixer.music.load(os.path.join('data', 'sounds', 'sarabande.ogg'))
+#        pygame.mixer.music.set_volume(0.2)
+#        pygame.mixer.music.play(-1)
 
     def initialize_text(self):
     #        render = self.help_font.render(self.help_text, True, black)
@@ -585,7 +580,7 @@ class MainMenu(object):
     #        self.help_item['render'] = render
     #        self.help_item['rect'] = render_rect
         for menu_item in self.menu_text.values():
-            render = self.menu_font.render(menu_item['text'], True, black)
+            render = self.menu_font.render(menu_item['text'], True, white)
             render_rect = render.get_rect(x=menu_item['x'], y=menu_item['y'])
             menu_item['render'] = render
             menu_item['rect'] = render_rect
@@ -610,8 +605,10 @@ class MainMenu(object):
             rect = menu_item['rect']
             if rect.x <= mouse_x <= rect.x + rect.x and rect.y <= mouse_y <= rect.y + rect.h:
                 if menu_item['text'] == 'Play game':
+   #                 pygame.mixer.music.stop()
                     rats = Game()
                     rats.main_loop()
+  #                  pygame.mixer.music.play(-1)
                 elif menu_item['text'] == 'Level editor':
                     editor = LevelEditor()
                     editor.main()
@@ -666,17 +663,16 @@ class LevelEditor(object):
         self.active_tile = None
 
     def initialize_text(self):
-        for key in self.editor_text:
-            render = self.editor_font.render(self.editor_text[key]['text'], True, white)
-            rect = render.get_rect(x = self.editor_text[key]['x'], y = self.editor_text[key]['y'])
-            self.editor_text[key]['render'] = render
-            self.editor_text[key]['rect'] = rect
+        for text_item in self.editor_text.values():
+            render = self.editor_font.render(text_item['text'], True, white)
+            rect = render.get_rect(x = text_item['x'], y = text_item['y'])
+            text_item['render'] = render
+            text_item['rect'] = rect
 
     def initialize_map(self):
         self.map = [['.' if x != 0 and y != 0 and x != 20 and y != 20 else '#' for x in range(21)] for y in range(21)]
 
     def save(self):
-        print 'abplb'
         save_file = open(os.path.join('data', 'temp_map.txt'), 'w+')
         for row in self.map:
             save_file.write(''.join(row) + '\n')
@@ -726,14 +722,15 @@ class LevelEditor(object):
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.done = True
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    self.handle_mouse(event.pos[0], event.pos[1])
+
                 if event.type == pygame.MOUSEMOTION and event.buttons[0]:
                     self.motion = True
                     self.handle_mouse(event.pos[0], event.pos[1])
                 elif self.motion:
                     self.active_tile = None
                     self.motion = False
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    self.handle_mouse(event.pos[0], event.pos[1])
             screen.fill(black)
             self.draw_map()
             self.draw_text()
@@ -762,7 +759,7 @@ class Game(object):
         self.initialize_sounds()   #Metod för att ladda in allt ljud
         self.editor_map = editor_map
         self.reset()               #reset innehåller alla som ska återställas vid omstart eller ny bana
-#        pygame.mixer.music.load(os.path.join('data', 'sounds', 'havanagila.mid'))
+#        pygame.mixer.music.load(os.path.join('data', 'sounds', 'Goof2.ogg'))
 #        pygame.mixer.music.set_volume(0.2)
 #        pygame.mixer.music.play(-1)
         self.board_width = self.board_height = 20 * tile_size #Brädet är 21 tiles högt och brett, och varje tile är 32 x 32 pixlar
@@ -1002,6 +999,7 @@ class Game(object):
                 #print event
                 if event.type == pygame.QUIT:
                     self.done = True
+ #                   pygame.mixer.music.stop()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     self.handle_mouse(event.pos[0], event.pos[1])
             screen.fill(black, pygame.Rect(672, 0, 800 - 672, 672))
@@ -1017,7 +1015,7 @@ class Game(object):
             #            game_rects.append(self.weapon_sprites.draw(screen))
             #            game_rects.append(self.tile_sprites.draw(screen))
             tile_rects = self.tile_sprites.draw(screen)
-         #   dirty_rects = self.dirty_tiles.draw(screen)
+        #    dirty_rects = self.dirty_tiles.draw(screen)
             weapon_rects = self.weapon_sprites.draw(screen)
             male_rects = self.male_rat_sprites.draw(screen) #Räkna ut alla sprite-rektanglar
             female_rects = self.female_rat_sprites.draw(screen)
@@ -1067,7 +1065,7 @@ class Game(object):
             self.male_rat_sprites.add(rat)
         else:
             self.female_rat_sprites.add(rat)
-        print 'number of basic_rat:', len(self.male_rat_sprites) + len(self.female_rat_sprites) + len(self.child_rat_sprites)
+       # print 'number of basic_rat:', len(self.male_rat_sprites) + len(self.female_rat_sprites) + len(self.child_rat_sprites)
 
     def collisions(self): #kollisionsdetektering
         if pygame.time.get_ticks() - self.collision_time > 50: #Ett test för att minska antal kollisionsdetekteringar. Hälften av spritegroupsen testas var 50 ms, och andra hälften nästa 50 ms
