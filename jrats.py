@@ -23,7 +23,6 @@ import rat
 #TODO       sommartileset
 #TODO       http://archives.seul.org/pygame/users/Jul-2010/msg00063.html
 #BUG        dubbla stoppskyltar - orsakas av att råttan kolliderar med fler en en stoppskylt
-#BUG        gas - dubbla sprites
 #BUG        leveleditor - placera väggar och väg
 #BUG        Ta bort nuke
 
@@ -248,9 +247,9 @@ class Game(object):
         self.initialize_sounds()   #Metod för att ladda in allt ljud
         self.editor_map = editor_map
         self.reset()               #reset innehåller alla som ska återställas vid omstart eller ny bana
-        pygame.mixer.music.load(os.path.join('data', 'sounds', 'Goof2.ogg'))
-        pygame.mixer.music.set_volume(0.2)
-        pygame.mixer.music.play(-1)
+  #      pygame.mixer.music.load(os.path.join('data', 'sounds', 'Goof2.ogg'))
+  #      pygame.mixer.music.set_volume(0.2)
+  #      pygame.mixer.music.play(-1)
         self.board_width = self.board_height = 20 * tile.tile_size #Brädet är 21 tiles högt och brett, och varje tile är 32 x 32 pixlar
 
     def reset(self, level=1):
@@ -267,8 +266,7 @@ class Game(object):
         self.done = False #Anger om spelet är slut
         self.create_level() #Skapar banan
         self.initial_population()
-        self.male_count = 0 #Antal manliga råttor
-        self.female_count = 0 #Antal kvinnliga råttor
+        self.population_count = {'M': 0, 'F': 0}
         self.male_ui_rect = pygame.Rect(700, 650, 50, 0) #Initierar mätaren för manliga råttor
         self.female_ui_rect = pygame.Rect(700, 650, 50, 0) #och mätaren för kvinnliga råttorr
         self.population_frame = pygame.Rect(700, 650, 50, -200) #Ramen runt mätaren
@@ -389,22 +387,19 @@ class Game(object):
 
     def update_sprites(self):
         self.dirty_tiles.empty()
-        self.male_count = 0 #Återställ räkningen av råttor
-        self.female_count = 0
+        self.population_count['M'] = 0 #Återställ räkningen av råttor
+        self.population_count['F'] = 0
         for sprite in self.male_rat_sprites: #För alla råttor, kör deras update-metod och öka på räkningen
             sprite.update()
-            self.male_count += 1
+            self.population_count['M'] += 1
             self.get_dirty_tiles(sprite, sprite.rect.x, sprite.rect.y)
         for sprite in self.female_rat_sprites:
             sprite.update()
-            self.female_count += 1
+            self.population_count['F'] += 1
             self.get_dirty_tiles(sprite, sprite.rect.x, sprite.rect.y)
         for sprite in self.child_rat_sprites:
             sprite.update()
-            if sprite.gender == 'M':
-                self.male_count += 1
-            else:
-                self.female_count += 1
+            self.population_count[sprite.gender] += 1
             self.get_dirty_tiles(sprite, sprite.rect.x, sprite.rect.y)
         for sprite in self.weapon_sprites: #För varje vapen
             sprite.update() #Kör deras update-metod
@@ -417,9 +412,9 @@ class Game(object):
 
 
     def draw_ui(self): #Ritar ut användarinterfacet
-        self.male_ui_rect.h = -self.male_count * 5 #Höjden på mätaren som visar antal manliga råttor får höjden: antal manliga råttor * 5
+        self.male_ui_rect.h = -self.population_count['M'] * 5 #Höjden på mätaren som visar antal manliga råttor får höjden: antal manliga råttor * 5
         pygame.draw.rect(screen, blue, self.male_ui_rect) #Rita ut mätaren
-        self.female_ui_rect.h = -self.female_count * 5
+        self.female_ui_rect.h = -self.population_count['F'] * 5
         self.female_ui_rect.top = self.male_ui_rect.top + self.male_ui_rect.h #Mätaren för kvinnliga råttor ritas ut ovanför den manliga
         pygame.draw.rect(screen, red, self.female_ui_rect)
         pygame.draw.rect(screen, green, self.population_frame, 2) #Rita ut ramen runt mätarna
@@ -431,9 +426,9 @@ class Game(object):
 
     def process_text(self): #Hanterar all text
         text_items = {
-            'Population': {'text': 'Number of rats: {0}'.format(self.male_count + self.female_count), 'x': 680, 'y': 20},
-            'Male population': {'text': 'Male: {0}'.format(self.male_count), 'x': 680, 'y': 40},
-            'Female population': {'text': 'Female: {0}'.format(self.female_count), 'x': 680, 'y': 60},
+            'Population': {'text': 'Number of rats: {0}'.format(self.population_count['M'] + self.population_count['F']), 'x': 680, 'y': 20},
+            'Male population': {'text': 'Male: {0}'.format(self.population_count['M']), 'x': 680, 'y': 40},
+            'Female population': {'text': 'Female: {0}'.format(self.population_count['F']), 'x': 680, 'y': 60},
             'Score' : {'text' : 'Score: {0}'.format(self.score), 'x' : 680, 'y' : 80}}
         for name, info in self.menu_items.iteritems():
             text_items[name] = {'text': str(self.menu_items[name]['amount']), 'x': self.menu_items[name]['x'] + 40, 'y': self.menu_items[name]['y'] + 10}
@@ -526,7 +521,7 @@ class Game(object):
                 self.done = True
 
     def check_game_over(self): #testmetod
-        population = self.male_count + self.female_count
+        population = self.population_count['M'] + self.population_count['F']
         if population > 1500:
             self.lost = True
         elif population <= 0:
