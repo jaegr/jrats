@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 import pygame
-import pygame.locals
 import random
-import ConfigParser
 import os
 
 import glob
@@ -47,10 +45,6 @@ size = [800, 672]
 screen = pygame.display.set_mode(size)
 pygame.display.set_caption("j&R")
 clock = pygame.time.Clock()
-
-
-
-
 
 class MainMenu(object):
     def __init__(self):
@@ -254,9 +248,9 @@ class Game(object):
         self.initialize_sounds()   #Metod för att ladda in allt ljud
         self.editor_map = editor_map
         self.reset()               #reset innehåller alla som ska återställas vid omstart eller ny bana
-#        pygame.mixer.music.load(os.path.join('data', 'sounds', 'Goof2.ogg'))
-#        pygame.mixer.music.set_volume(0.2)
-#        pygame.mixer.music.play(-1)
+        pygame.mixer.music.load(os.path.join('data', 'sounds', 'Goof2.ogg'))
+        pygame.mixer.music.set_volume(0.2)
+        pygame.mixer.music.play(-1)
         self.board_width = self.board_height = 20 * tile.tile_size #Brädet är 21 tiles högt och brett, och varje tile är 32 x 32 pixlar
 
     def reset(self, level=1):
@@ -482,8 +476,7 @@ class Game(object):
             self.active_weapon = None
 
     def play_sound(self, sound):
-        pass
-        #self.sounds[sound].play()
+        self.sounds[sound].play()
 
     def main_loop(self):
         while not self.done:

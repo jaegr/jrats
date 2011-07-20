@@ -91,6 +91,7 @@ class GasSource(Weapons):
                 self.expand_directions.rotate(-1)
                 if self.expand_directions[0] == 'Up':
                     self.initial_gas = False
+                    done = True
                     if len(self.gas_clouds) == 0: #Om det inte finns utrymme att släppa ut gasen
                         self.delete()
                         return
