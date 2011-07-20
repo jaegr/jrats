@@ -377,6 +377,12 @@ class Game(object):
                 self.dirty_tiles.add(tile1)
             if not self.dirty_tiles.has(tile2):
                 self.dirty_tiles.add(tile2)
+        elif isinstance(obj, weapons.Nuke):
+            for tile_y in range(y - 32, y + 64, 32):
+                for tile_x in range(x - 32, x + 64, 32):
+                    tile = self.leveltest.tile_map[tile_y / 32][tile_x / 32]
+                    if not self.dirty_tiles.has(tile):
+                        self.dirty_tiles.add(tile)
         else:
             x = x - (x % 32)
             y = y - (x % 32)
@@ -471,7 +477,8 @@ class Game(object):
             self.active_weapon = None
 
     def play_sound(self, sound):
-        self.sounds[sound].play()
+        pass
+        #self.sounds[sound].play()
 
     def main_loop(self):
         while not self.done:
