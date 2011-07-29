@@ -14,10 +14,9 @@ class Level(object):
         self.tile_set = ''
         self.directions = {'N': 1, 'S': -1, 'E': 2, 'W': -2}
 
-    def load_map(self, filename=os.path.join('data', 'map.txt')):
+    def load_map(self):
         if not self.editor_map:
-            parser = ConfigParser.ConfigParser() #ConfigParser gör det smidigt att läsa in banor från textfiler
-            parser.read(filename) #Läs in map.txt
+            parser = self.get_parser()
             self.tile_set = parser.get('level{0}'.format(self.level), 'tileset')
             for row in parser.get('level{0}'.format(self.level), 'map').split(): #Och läs in map under rubriken level{nivå}
                 self.map.append(list(row)) #Raderna görs om till en lista och läggs till i self.map
@@ -32,6 +31,20 @@ class Level(object):
                     available_tilesets.append(name)
             self.tile_set = random.choice(available_tilesets)
 
+    def number_of_levels(self):
+        parser = self.get_parser()
+        lvl_number = 0
+        while True:
+            if parser.has_section('level{0}'.format(lvl_number + 1)):
+                lvl_number += 1
+            else:
+                break
+        return lvl_number
+
+    def get_parser(self, filename=os.path.join('data', 'map.txt')):
+        parser = ConfigParser.ConfigParser()
+        parser.read(filename)
+        return parser
 
     def load_tile_map(self):
         self.tile_map = [[tile.Tile(self.game, x, y, col, self.check_neighbors(x, y)) for x, col in enumerate(row)] for y, row in enumerate(self.map)]

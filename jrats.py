@@ -24,7 +24,6 @@ import rat
 #TODO       http://archives.seul.org/pygame/users/Jul-2010/msg00063.html
 #BUG        dubbla stoppskyltar - orsakas av att råttan kolliderar med fler en en stoppskylt
 #BUG        leveleditor - placera väggar och väg
-#BUG        Ta bort nuke
 
 black = (   0, 0, 0)
 white = ( 255, 255, 255)
@@ -254,7 +253,7 @@ class Game(object):
 
     def reset(self, level=1):
         self.menu_items = {} #Ett dictionary som kommer innehålla information om vapenikonerna i menyn
-        self.level = level   #Vilken nivå 
+        self.level = level   #Vilken nivå
         self.initialize_menu() #Initiera menyn genom att tilldela menu_items värden
         self.male_rat_sprites = pygame.sprite.LayeredDirty() #Skapa spritegroups (för dirtysprites) för de olika sprite:arna
         self.female_rat_sprites = pygame.sprite.LayeredDirty()
@@ -264,6 +263,7 @@ class Game(object):
         self.dirty_tiles = pygame.sprite.LayeredDirty()
         self.score = 0
         self.done = False #Anger om spelet är slut
+        self.num_levels = 0
         self.create_level() #Skapar banan
         self.initial_population()
         self.population_count = {'M': 0, 'F': 0}
@@ -284,8 +284,13 @@ class Game(object):
         for i in range(7):
             self.create_rat(init=True)
 
+    def get_number_of_levels(self):
+        self.num_levels = self.leveltest.number_of_levels()
+
     def create_level(self): #Skapa en instans av Level, ladda kartan, rita ut blommor
         self.leveltest = level.Level(self.level, self, self.editor_map)
+        if not self.num_levels:
+            self.get_number_of_levels()
         self.leveltest.load_map()
         self.load_tileset()
         self.leveltest.load_tile_map()
@@ -523,7 +528,8 @@ class Game(object):
             if self.win and not self.editor_map:
                 self.done = True
                 self.level += 1
-                self.reset(self.level)
+                if not self.level > self.num_levels:
+                    self.reset(self.level)
             elif self.win and self.editor_map:
                 self.done = True
 
