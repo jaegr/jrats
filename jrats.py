@@ -9,19 +9,9 @@ import weapons
 import level
 import rat
 
-#TODO       win-conditions
-#TODO       egna vapen
-#TODO       balancera svårighetsgrad
-#TODO       svårighetsgrader (easy/normal/hard)?
-#TODO       Font caching, dictionary?, rendera inte fonten varje tick
-#TODO       Game states - main menu, game over screen, win screen.
-#TODO       optimera kollisionsdetektering?
 #TODO       powerups
 #TODO       egen musik? glob.glob(os.path.join('data', 'sounds', 'music', '*')) ?
-#TODO       ost?
 #TODO       bättre lösning för att spara banor
-#TODO       sommartileset
-#TODO       http://archives.seul.org/pygame/users/Jul-2010/msg00063.html
 #BUG        dubbla stoppskyltar - orsakas av att råttan kolliderar med fler en en stoppskylt
 #BUG        leveleditor - placera väggar och väg
 
@@ -71,7 +61,6 @@ class MainMenu(object):
             render_rect = render.get_rect(x=menu_item['x'], y=menu_item['y'])
             menu_item['render'] = render
             menu_item['rect'] = render_rect
-    #    HighScoreScreen()
 
     def main(self):
         while not self.done:
@@ -96,6 +85,9 @@ class MainMenu(object):
                     rats = Game()
                     rats.main_loop()
   #                  pygame.mixer.music.play(-1)
+  #              elif menu_item['text'] == 'Highscore':
+  #                  hs = HighScoreScreen()
+  #                  hs.main()
                 elif menu_item['text'] == 'Level editor':
                     editor = LevelEditor()
                     editor.main()
@@ -113,7 +105,7 @@ class HighScoreScreen(object):
 #                new_file.write('{0}. Empty - 0 points')
     def __init__(self):
         with open(os.path.join('data', 'highscore.txt')) as hs_file:
-            self.hs_txttable = [line.strip() for line in hs_file]
+            self.hs_txttable = [line.strip().split(';') for line in hs_file]
         self.hs_font = pygame.font.Font(None, 70)
         self.hs_font_properties = {}
         self.hs_font_items = {}
@@ -124,15 +116,19 @@ class HighScoreScreen(object):
         text_y = 20
         screen.fill(black)
         for n, line in enumerate(self.hs_txttable):
-            render = self.hs_font.render(self.hs_txttable[n], True, white)
+            render = self.hs_font.render(str(n + 1) + ' ' + self.hs_txttable[n][0] + self.hs_txttable[n][1], True, white)
             rect = render.get_rect(x = text_x, y = text_y * (n + 1) * 3)
         #    print line, render, rect, self.hs_txttable[n]
             screen.blit(render, rect)
         pygame.display.flip()
 
     def main(self):
-        while True:
+        done = False
+        while not done:
             self.initialize_text()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    done = True
 
 class LevelEditor(object):
     def __init__(self):
@@ -281,7 +277,7 @@ class Game(object):
         self.collision_time = pygame.time.get_ticks()
 
     def initial_population(self):
-        for i in range(7):
+        for i in range(10):
             self.create_rat(init=True)
 
     def get_number_of_levels(self):
@@ -335,20 +331,20 @@ class Game(object):
 
     def initialize_menu(self):
         self.menu_sprites = pygame.sprite.LayeredDirty() #Alla menysprites läggs in i en spritegroup
-        self.menu_items['Stop sign'] = {'x': 700, 'y': 120, 'amount': 100} #Alla vapen i menyn får ett x och y-värde, och hur stort antal av det vapnet som användaren har
-        self.menu_items['Poison'] = {'x': 700, 'y': 160, 'amount': 100}
-        self.menu_items['Terminator'] = {'x': 700, 'y': 200, 'amount': 100}
-        self.menu_items['Bomb'] = {'x': 700, 'y': 240, 'amount': 100}
-        self.menu_items['Change gender male'] = {'x': 700, 'y': 280, 'amount': 100}
-        self.menu_items['Change gender female'] = {'x': 700, 'y': 320, 'amount': 100}
-        self.menu_items['Nuke'] = {'x': 700, 'y': 360, 'amount': 100}
-        self.menu_items['Gas source'] = {'x': 700, 'y': 400, 'amount': 100}
+        self.menu_items['Stop sign'] = {'x': 700, 'y': 120, 'amount': 0} #Alla vapen i menyn får ett x och y-värde, och hur stort antal av det vapnet som användaren har
+        self.menu_items['Poison'] = {'x': 700, 'y': 160, 'amount': 0}
+        self.menu_items['Terminator'] = {'x': 700, 'y': 200, 'amount': 0}
+        self.menu_items['Bomb'] = {'x': 700, 'y': 240, 'amount': 0}
+        self.menu_items['Change gender male'] = {'x': 700, 'y': 280, 'amount': 0}
+        self.menu_items['Change gender female'] = {'x': 700, 'y': 320, 'amount': 0}
+        self.menu_items['Nuke'] = {'x': 700, 'y': 360, 'amount': 0}
+        self.menu_items['Gas source'] = {'x': 700, 'y': 400, 'amount': 0}
         #     self.menu_items['Restart'] = { 'x' : 700, 'y' : 500, 'amount': 'Restart'}
         for name, coords in self.menu_items.iteritems():
             self.menu_sprites.add(Menu_items(self, name, coords['x'], coords['y'])) #Skapa sprites av alla vapen och lägg till i spritegroupen
 
     def generate_weapons(self):
-        if pygame.time.get_ticks() - self.last_generated_weapon > random.randint(3000, 7000): #Mellan var 3:e och var 7:e sekunder, skapa ett slumpat vapen
+        if pygame.time.get_ticks() - self.last_generated_weapon > random.randint(2000, 5000): #Mellan var 3:e och var 7:e sekunder, skapa ett slumpat vapen
             self.menu_items[random.choice(self.menu_items.keys())]['amount'] += 1
             self.last_generated_weapon = pygame.time.get_ticks()
             self.play_sound('Ding')
@@ -423,9 +419,9 @@ class Game(object):
 
 
     def draw_ui(self): #Ritar ut användarinterfacet
-        self.male_ui_rect.h = -self.population_count['M'] * 5 #Höjden på mätaren som visar antal manliga råttor får höjden: antal manliga råttor * 5
+        self.male_ui_rect.h = -self.population_count['M'] * 4 #Höjden på mätaren som visar antal manliga råttor får höjden: antal manliga råttor * 5
         pygame.draw.rect(screen, blue, self.male_ui_rect) #Rita ut mätaren
-        self.female_ui_rect.h = -self.population_count['F'] * 5
+        self.female_ui_rect.h = -self.population_count['F'] * 4
         self.female_ui_rect.top = self.male_ui_rect.top + self.male_ui_rect.h #Mätaren för kvinnliga råttor ritas ut ovanför den manliga
         pygame.draw.rect(screen, red, self.female_ui_rect)
         pygame.draw.rect(screen, green, self.population_frame, 2) #Rita ut ramen runt mätarna
@@ -482,8 +478,7 @@ class Game(object):
             self.active_weapon = None
 
     def play_sound(self, sound):
-        pass
-        #self.sounds[sound].play()
+        self.sounds[sound].play()
 
     def main_loop(self):
         while not self.done:
