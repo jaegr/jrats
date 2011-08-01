@@ -463,9 +463,9 @@ class Game(object):
         elif self.active_weapon == 'Bomb':
             self.weapon_sprites.add(weapons.Bomb(self, mouse_x, mouse_y))
         elif self.active_weapon == 'Change gender male':
-            self.weapon_sprites.add(weapons.ChangeGenderMale(self, mouse_x, mouse_y))
+            self.weapon_sprites.add(weapons.ChangeGender(self, mouse_x, mouse_y, 'Change gender male'))
         elif self.active_weapon == 'Change gender female':
-            self.weapon_sprites.add(weapons.ChangeGenderFemale(self, mouse_x, mouse_y))
+            self.weapon_sprites.add(weapons.ChangeGender(self, mouse_x, mouse_y, 'Change gender female'))
         elif self.active_weapon == 'Terminator':
             self.weapon_sprites.add(weapons.Terminator(self, self.leveltest, mouse_x, mouse_y))
         elif self.active_weapon == 'Nuke':
@@ -590,8 +590,9 @@ class Game(object):
                 if isinstance(weapon1, weapons.Explosion) and not isinstance(weapon2, weapons.Explosions) and not isinstance(weapon2, weapons.GasSource): #Om första vapnet är en explosion, och andra vapnet inte är det, hantera det (ta bort andra vapnet)
                     weapon1.handle_collision(weapon2)
                 elif isinstance(weapon1, weapons.Weapons) and isinstance(weapon2, weapons.Terminator):
-                    if isinstance(weapon1, weapons.ChangeGenderMale) or isinstance(weapon1, weapons.ChangeGenderFemale): #Om ena vapnet är könsbyte och andra är terminator, gör om terminatorn till vanlig
-                        gender = 'M' if isinstance(weapon1, weapons.ChangeGenderMale) else 'F'
+                    if isinstance(weapon1, weapons.ChangeGender): #Om ena vapnet är könsbyte och andra är terminator, gör om terminatorn till vanlig
+                        gender = 'M' if weapon1.name == 'Change gender male' else 'F'
+                        self.sounds['Change gender'].play()
                         self.create_rat(weapon2.rect.x, weapon2.rect.y, isAdult=True, direction=weapon2.direction, set_gender=gender)
                         weapon2.delete()
                         weapon1.delete()

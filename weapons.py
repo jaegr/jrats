@@ -172,27 +172,17 @@ class Terminator(Weapons, rat.Rat): #Terminator-råttor ärver från både Weapo
         rat.Rat.update(self)
 
 
-class ChangeGenderMale(Weapons): #Byter kön på en råtta, och gör en terminator-råtta till en vanlig råtta
-    def __init__(self, game, x, y):
-        Weapons.__init__(self, game, x, y, 'Change gender male')
+class ChangeGender(Weapons): #Byter kön på en råtta, och gör en terminator-råtta till en vanlig råtta
+    def __init__(self, game, x, y, name):
+        Weapons.__init__(self, game, x, y, name)
 
-    def handle_collision(self, rat):
-        if rat.type == 'Rat' and rat.gender == 'F': #Om den kolliderar med en rått-typ, kör råttans change gender-metod, och ta bort sig själv
+    def handle_collision(self, colliding_rat):
+        if isinstance(colliding_rat, rat.Rat): #Om den kolliderar med en rått-typ, kör råttans change gender-metod, och ta bort sig själv
+            if self.name == 'Change gender male' and colliding_rat.gender == 'M' or self.name == 'Change gender female' and colliding_rat.gender == 'F':
+                return
             self.play_sound('Change gender')
-            rat.change_gender()
+            colliding_rat.change_gender()
             self.delete()
-
-
-class ChangeGenderFemale(Weapons): #Byter kön på en råtta, och gör en terminator-råtta till en vanlig råtta
-    def __init__(self, game, x, y):
-        Weapons.__init__(self, game, x, y, 'Change gender female')
-
-    def handle_collision(self, rat):
-        if rat.type == 'Rat' and rat.gender == 'M': #Om den kolliderar med en rått-typ, kör råttans change gender-metod, och ta bort sig själv
-            self.play_sound('Change gender')
-            rat.change_gender()
-            self.delete()
-
 
 class Poison(Weapons): #Placeras ut på banan och vid kollision med en råtta så försvinner både råttan och giftet
     def __init__(self, game, x, y):
