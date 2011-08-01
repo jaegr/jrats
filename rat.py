@@ -10,15 +10,19 @@ class Rat(pygame.sprite.DirtySprite): #Huvudklassen för alla råttor. Vanliga r
         self.directions = {'N': 1, 'S': -1, 'E': 2, 'W': -2} #Vilken riktning som råttorna ska gå. Heltal gör det enkelt att vända om (-self.direction)
         self.rotation = {1: 0, -1: 180, 2: 270, -2: 90}     #Hur många grader bilden på råttan ska roteras. Motsvarar samma heltal som i self.directions
         self.direction_timer = []
+        self.direction = self.get_direction(direction)
+        self.dirty = 2       #Råttorna ska alltid ritas om. DirtySprite på råttorna ger ingen direkt fördel, utan är mest för att stämma överens med vapen-sprite:arna
+        self.last_check = 0
+
+    def get_direction(self, direction):
         if not direction:    #När barn blir vuxna, eller råttor byter kön så skapas en ny sprite, och den spriten ska ha samma riktning som den "gamla"
             available_directions = self.level_instance.get_directions(self.rect.x, self.rect.y)
             if not len(available_directions):
-                self.direction = None
+                return None
             else:
-                self.direction = random.choice(available_directions) #Om de inte har någon gammal riktning (t.ex. råttorna som skapas vid spelstart) tilldelas en riktning
+                return random.choice(available_directions) #Om de inte har någon gammal riktning (t.ex. råttorna som skapas vid spelstart) tilldelas en riktning
         else:
-            self.direction = direction
-        self.dirty = 2       #Råttorna ska alltid ritas om. DirtySprite på råttorna ger ingen direkt fördel, utan är mest för att stämma överens med vapen-sprite:arna
+            return direction
 
     def update(self):
         if not self.direction: #Om råttan är instängd
@@ -45,6 +49,10 @@ class Rat(pygame.sprite.DirtySprite): #Huvudklassen för alla råttor. Vanliga r
                     self.direction_timer.pop(index)
 
     def change_direction(self, weapon = None): #Sätt riktning till motsatt riktning
+        if self.last_check == pygame.time.get_ticks(): #Byt bara riktning en gång varje frame
+            return 0
+        else:
+            self.last_check = pygame.time.get_ticks()
         if isinstance(weapon, weapons.StopSign) or isinstance(weapon, weapons.Bomb) and self.direction:
             for items in self.direction_timer:
                 if weapon == items[0]:
@@ -61,18 +69,10 @@ class EnemyRat(Rat):
     def __init__(self, game, level, x=32, y=32, isAdult=True, gender=None, direction=None, sterile = False): #Vanliga råttor
         self.level_instance = level #Ta emot levelinstansen (som krävs för att bestämma riktningar)
         self.game = game            #Gameklassens instans krävs bl.a. för att byta kön eftersom den skapar en ny råtta av motsatt kön
-        if not gender:          #Om råttans kön inte redan är bestäms, välj ett slumpvis
-            self.gender = random.choice(['M', 'F'])
-        else:
-            self.gender = gender   #Annars sätt det som vi fick som inparameter
+        self.gender = self.get_gender(gender)
         self.adult = isAdult       #Är råttan vuxen?
         self.type = 'Rat'          #Type används bl.a. vid kollisionsdetekteringen
-        if not self.adult:
-            self.name = 'Baby rat' #Sätt rätt namn, vilket också används vid kollisionsdetekteringen
-        elif self.gender == 'M':
-            self.name = 'Male rat'
-        else:
-            self.name = 'Female rat'
+        self.name = self.get_name()
         self.pregnant = False     #En nyskapad råtta är inte gravid
         self.base_image = self.game.graphics[self.name] #base_image är den bild som vi kommer utgå ifrån när bilden på råttan ska roteras. Den behövs eftersom rotationen är destruktiv
         self.image = self.base_image
@@ -86,17 +86,31 @@ class EnemyRat(Rat):
         Rat.__init__(self, direction) #Kör huvudklassens __init__
        # print self.gender, self.adult, self.direction, self.pregnant, self.sterile, self.name, self.type
 
+    def get_name(self):
+        if not self.adult:
+            return 'Baby rat' #Sätt rätt namn, vilket också används vid kollisionsdetekteringen
+        elif self.gender == 'M':
+            return 'Male rat'
+        else:
+            return 'Female rat'
+
+    def get_gender(self, gender):
+        if not gender:          #Om råttans kön inte redan är bestäms, välj ett slumpvis
+            return random.choice(['M', 'F'])
+        else:
+            return gender   #Annars sätt det som vi fick som inparameter
+
+
     def change_gender(self): #Skapar en ny råttsprite vid könbyte.
         new_gender = 'M' if self.gender == 'F' else 'F'
         self.game.create_rat(x=self.rect.x, y=self.rect.y, set_gender=new_gender,
                              isAdult=self.adult, direction=self.direction, sterile = self.sterile)
         self.delete()
 
-
     def check_mate(self, other_rat): #Kollar om det är okej att para sig. Kollisionsdetekteringen ser till så att self är kvinnlig och other_rat är manlig
         if not self.pregnant and self.adult and other_rat.adult and not self.sterile and not other_rat.sterile: #Råttan får inte redan vara gravid, båda måste vara vuxna, och ingen får vara steril
-            self.game.play_sound('Mate') #Spela parningsljudet
             self.handle_pregnant() #Kör funktionen för att hantera en gravid råtta
+            return True
 
     def handle_pregnant(self):
         if not self.pregnant: #Första gången funktionen så sätts råttan som gravid

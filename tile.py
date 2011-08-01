@@ -16,16 +16,20 @@ class Tile(pygame.sprite.DirtySprite):
         self.name = self.get_name_from_tile()
         self.x = x
         self.y = y
-        if self.name == 'Path':
-            self.image = self.game.graphics['Path'][self.tile_number]
-        else:
-            if random.randint(1, 100) < 95:
-                self.image = random.choice(self.game.graphics['Wall'])
-            else:
-                self.image = random.choice(self.game.graphics['Decorations'])
+        self.image = self.get_image()
         self.rect = self.image.get_rect()
         self.rect.x = self.x * tile_size
         self.rect.y = self.y * tile_size
+
+    def get_image(self):
+        if self.name == 'Path':
+            return self.game.graphics['Path'][self.tile_number]
+        else:
+            if random.randint(1, 100) < 95:
+                return random.choice(self.game.graphics['Wall'])
+            else:
+                return random.choice(self.game.graphics['Decorations'])
+
 
     def get_name_from_tile(self):
         if self.tile == '#':

@@ -107,7 +107,6 @@ class GasSource(Weapons):
                     x, y = random.choice(available_neighbor_tiles)
                     self.gas_clouds.append(Gas(self.game, x, y, self, self.level))
                     self.game.weapon_sprites.add(self.gas_clouds[-1])
-                    done = True
                     break
             else:
                 self.start_removing = True
@@ -130,7 +129,7 @@ class GasSource(Weapons):
         elif not len(self.gas_clouds):
             self.delete()
 
-class Gas(Weapons): #Ej implementerat än
+class Gas(Weapons):
     def __init__(self, game, x, y, gas_source, level):
         Weapons.__init__(self, game, x, y, 'Gas')
         self.gas_source = gas_source
