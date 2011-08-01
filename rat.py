@@ -71,7 +71,6 @@ class EnemyRat(Rat):
         self.game = game            #Gameklassens instans krävs bl.a. för att byta kön eftersom den skapar en ny råtta av motsatt kön
         self.gender = self.get_gender(gender)
         self.adult = isAdult       #Är råttan vuxen?
-        self.type = 'Rat'          #Type används bl.a. vid kollisionsdetekteringen
         self.name = self.get_name()
         self.pregnant = False     #En nyskapad råtta är inte gravid
         self.base_image = self.game.graphics[self.name] #base_image är den bild som vi kommer utgå ifrån när bilden på råttan ska roteras. Den behövs eftersom rotationen är destruktiv

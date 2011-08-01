@@ -12,7 +12,6 @@ import rat
 #TODO       powerups
 #TODO       egen musik? glob.glob(os.path.join('data', 'sounds', 'music', '*')) ?
 #TODO       bättre lösning för att spara banor
-#BUG        dubbla stoppskyltar - orsakas av att råttan kolliderar med fler en en stoppskylt
 #BUG        leveleditor - placera väggar och väg
 
 black = (   0, 0, 0)
@@ -556,14 +555,13 @@ class Game(object):
        # print 'number of basic_rat:', len(self.male_rat_sprites) + len(self.female_rat_sprites) + len(self.child_rat_sprites)
 
     def collisions(self): #kollisionsdetektering
-
-        self.collision_time = pygame.time.get_ticks()
         mate_hit = pygame.sprite.groupcollide(self.female_rat_sprites, self.male_rat_sprites, False, False) #Kolla om några manliga och kvinnliga råttor kolliderar
         for female, males in mate_hit.iteritems():
             for male in males:
                 if female in self.female_rat_sprites and male in self.male_rat_sprites:
                     if female.check_mate(male): #Om de gör det, så kör metoden för att kolla om råttan ska bli gravid
                         self.play_sound('Mate')
+
         weapon_male_hit = pygame.sprite.groupcollide(self.weapon_sprites, self.male_rat_sprites, False, False)
         for weapon, males in weapon_male_hit.iteritems(): #Kolla om några manliga råttor kolliderar, och hantera kollisionen då
             for male in males:
@@ -576,21 +574,23 @@ class Game(object):
             for female in females:
                 if weapon in self.weapon_sprites and female in self.female_rat_sprites:
                     weapon.handle_collision(female)
+
         weapon_child_hit = pygame.sprite.groupcollide(self.weapon_sprites, self.child_rat_sprites, False, False) #Barn ->
         for weapon, children in weapon_child_hit.iteritems():
             for child in children:
                 if weapon in self.weapon_sprites and child in self.child_rat_sprites:
                     weapon.handle_collision(child)
+                    
         weapon_weapon_hit = pygame.sprite.groupcollide(self.weapon_sprites, self.weapon_sprites, False, False) #Vapen -> Vapen
-        for weapon1, weapons in weapon_weapon_hit.iteritems():
-            for weapon2 in weapons:
+        for weapon1, weapons2 in weapon_weapon_hit.iteritems():
+            for weapon2 in weapons2:
                 if weapon1 is weapon2 or weapon1 not in self.weapon_sprites or weapon2 not in self.weapon_sprites: #Om det är samma objekt, fortsätt
                     continue
-                if weapon1.name == 'Explosion' and weapon2.name != 'Explosion' and weapon2.name != 'Gas source': #Om första vapnet är en explosion, och andra vapnet inte är det, hantera det (ta bort andra vapnet)
+                if isinstance(weapon1, weapons.Explosion) and not isinstance(weapon2, weapons.Explosions) and not isinstance(weapon2, weapons.GasSource): #Om första vapnet är en explosion, och andra vapnet inte är det, hantera det (ta bort andra vapnet)
                     weapon1.handle_collision(weapon2)
-                elif weapon1.type == 'Weapon' and weapon2.name == 'Terminator':
-                    if weapon1.name == 'Change gender male' or weapon1.name == 'Change gender female': #Om ena vapnet är könsbyte och andra är terminator, gör om terminatorn till vanlig
-                        gender = 'M' if weapon1.name == 'Change gender male' else 'F'
+                elif isinstance(weapon1, weapons.Weapons) and isinstance(weapon2, weapons.Terminator):
+                    if isinstance(weapon1, weapons.ChangeGenderMale) or isinstance(weapon1, weapons.ChangeGenderFemale): #Om ena vapnet är könsbyte och andra är terminator, gör om terminatorn till vanlig
+                        gender = 'M' if isinstance(weapon1, weapons.ChangeGenderMale) else 'F'
                         self.create_rat(weapon2.rect.x, weapon2.rect.y, isAdult=True, direction=weapon2.direction, set_gender=gender)
                         weapon2.delete()
                         weapon1.delete()

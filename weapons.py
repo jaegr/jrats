@@ -8,7 +8,6 @@ import tile
 class Weapons(pygame.sprite.DirtySprite): #Huvudklassen för vapen
     def __init__(self, game, x, y, name): #Tar en game-instans, musens x och y-värden, samt namnet på vapnet
         pygame.sprite.DirtySprite.__init__(self)
-        self.type = 'Weapon' #Typen sätts som vapen
         self.name = name     #Namnet sätts som vapennamnet
         self.game = game
         self.image = self.game.graphics[self.name] #Bilden på vapnet tas från gameinstansens graphics-dictionary
