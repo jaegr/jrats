@@ -78,7 +78,7 @@ class MainMenu(object):
     def handle_mouse(self, mouse_x, mouse_y):
         for menu_item in self.menu_text.values():
             rect = menu_item['rect']
-            if rect.x <= mouse_x <= rect.x + rect.x and rect.y <= mouse_y <= rect.y + rect.h:
+            if rect.collidepoint(mouse_x, mouse_y):
                 if menu_item['text'] == 'Play game':
    #                 pygame.mixer.music.stop()
                     rats = Game()
@@ -185,7 +185,7 @@ class LevelEditor(object):
             self.map[aligned_y][aligned_x] = self.active_tile
         for text_item in self.editor_text.values():
             rect = text_item['rect']
-            if rect.x <= mouse_x <= rect.x + rect.w and rect.y <= mouse_y <= rect.y + rect.h:
+            if rect.collidepoint(mouse_x, mouse_y):
                 self.action(text_item['text'])
 
     def action(self, key_action):
@@ -445,7 +445,7 @@ class Game(object):
 
     def handle_mouse(self, mouse_x, mouse_y): #Hanterar musklick
         for icon in self.menu_sprites:
-            if icon.rect.x <= mouse_x <= icon.rect.x + icon.rect.w and icon.rect.y <= mouse_y <= icon.rect.y + icon.rect.h: #Kollar om användaren klickat på en ikon
+            if icon.rect.collidepoint(mouse_x, mouse_y): #Kollar om användaren klickat på en ikon
                 if self.menu_items[icon.name]['amount'] > 0: #Om användaren har det vapnet
                     self.active_weapon = icon.name           #Sätt vapnet som aktivt
                     self.active_rectangle = pygame.Rect(icon.rect.x, icon.rect.y, 32, 32) #Och rita ut en rektangel runt vapnet
