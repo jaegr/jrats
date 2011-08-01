@@ -177,8 +177,10 @@ class LevelEditor(object):
             screen.blit(text_item['render'], text_item['rect'])
 
     def handle_mouse(self, mouse_x, mouse_y):
+        print self.active_tile
         aligned_x = mouse_x / self.tile_size
         aligned_y = mouse_y / self.tile_size
+        clicked_tile = self.map[aligned_y][aligned_x]
         if aligned_x < 20 and aligned_y < 20 and aligned_x > 0 and aligned_y > 0:
             if not self.active_tile:
                 self.active_tile = '.' if self.map[aligned_y][aligned_x] == '#' else '#'
@@ -204,11 +206,10 @@ class LevelEditor(object):
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.done = True
-
                 if event.type == pygame.MOUSEMOTION and event.buttons[0]:
                     self.motion = True
                     self.handle_mouse(event.pos[0], event.pos[1])
-                elif self.motion:
+                elif self.motion or event.type == pygame.MOUSEBUTTONUP:
                     self.active_tile = None
                     self.motion = False
                 elif event.type == pygame.MOUSEBUTTONDOWN:
