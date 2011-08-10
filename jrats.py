@@ -42,7 +42,8 @@ class MainMenu(object):
                           'Highscore': {'text': 'Highscore', 'x': 630, 'y': 350},
                           'Editor' : {'text': 'Level editor', 'x': 630, 'y': 400},
                           'Options': {'text': 'Options', 'x': 630, 'y': 450},
-                          'Exit': {'text': 'Exit', 'x': 630, 'y': 500}}
+                          'Help': {'text': 'Help', 'x': 630, 'y': 500},
+                          'Exit': {'text': 'Exit', 'x': 630, 'y': 550}}
 
         self.done = False
         self.options = {'Difficulty': 'Normal', 'Music': 'No', 'Music volume': '0.5', 'Sound volume': '0.5'}
@@ -91,48 +92,47 @@ class MainMenu(object):
                     editor = LevelEditor()
                     editor.main()
                 elif menu_item['text'] == 'Options':
-                    test = OptionsScreen(self.options)
-                    self.options = test.main()
+                    options = OptionsScreen(self.options)
+                    self.options = options.main()
+                elif menu_item['text'] == 'Help':
+                    help = HelpScreen()
+                    help.main()
                 elif menu_item['text'] == 'Exit':
                     self.done = True
-
-class HighScoreScreen(object):
-#    try:
-#        with open(os.path.join('data', 'highscore.txt')) as highscore_file:
-#            pass
-#    except IOError:
-#        with open(os.path.join('data', 'highscore.txt')) as new_file:
-#            for i in range(1,11):
-#                new_file.write('{0}. Empty - 0 points')
+                    
+class HelpScreen(object):
     def __init__(self):
-        with open(os.path.join('data', 'highscore.txt')) as hs_file:
-            self.hs_txttable = [line.strip().split(';') for line in hs_file]
-        self.hs_font = pygame.font.Font(None, 70)
-        self.hs_font_properties = {}
-        self.hs_font_items = {}
-        self.main()
+        self.help_font = pygame.font.Font(None, 20)
+        self.help_text = ['The objective of jRats is to kill all the rats on the level. The game is over if the rat population reaches 50.',
+                          'You have a number of weapons to help you fight the rats, which are randomly generated and given to you.',
+                          '',
+                          'Stop sign - ',
+                          'Poison -',
+                          'Terminator rat -',
+                          'Bomb -',
+                          'Gender change -',
+                          'Nuke -',
+                          'Toxic gas -']
+        self.initialize_text()
 
     def initialize_text(self):
-        """
-        Initializes all font objects
-        """
-        text_x = 170
-        text_y = 20
-        screen.fill(black)
-        for n, line in enumerate(self.hs_txttable):
-            render = self.hs_font.render(str(n + 1) + ' ' + self.hs_txttable[n][0] + self.hs_txttable[n][1], True, white)
-            rect = render.get_rect(x = text_x, y = text_y * (n + 1) * 3)
-        #    print line, render, rect, self.hs_txttable[n]
+        self.help_renders = [self.help_font.render(line, True, white) for line in self.help_text]
+        self.help_rects = [render.get_rect(x = 50, y = 50 + 20 * i) for i, render in enumerate(self.help_renders)]
+        self.result = zip(self.help_renders, self.help_rects)
+
+    def draw_text(self):
+        for render, rect in self.result:
             screen.blit(render, rect)
-        pygame.display.flip()
 
     def main(self):
         done = False
         while not done:
-            self.initialize_text()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     done = True
+            screen.fill(black)
+            self.draw_text()
+            pygame.display.flip()
 
 class OptionsScreen(object):
     def __init__(self, choices):
@@ -239,9 +239,6 @@ class OptionsScreen(object):
             pygame.display.flip()
         return self.choices
 
-class HelpScreen(object):
-    def __init__(self):
-        pass
 
 class GameOverScreen(object):
     def __init__(self, score):
