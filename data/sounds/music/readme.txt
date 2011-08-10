@@ -1,0 +1,1 @@
+Add custom music to this folder. OGG-files are recommended, as MP3-support in Pygame/SDL is limited.
