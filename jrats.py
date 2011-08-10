@@ -12,7 +12,7 @@ import sys
 from collections import deque
 
 #TODO       powerups
-#TODO       egen musik? glob.glob(os.path.join('data', 'sounds', 'music', '*')) ?
+#TODO       help screen
 #TODO       bättre lösning för att spara banor
 
 black = (   0, 0, 0)
@@ -383,7 +383,7 @@ class Menu_items(pygame.sprite.DirtySprite): #Skapar bilderna i menyn
 
 class Game(object):
     def __init__(self, options, editor_map = None):
-        pygame.mixer.init(frequency=22050, size=-16, channels=2, buffer=4096) #Initierar ljuder
+        pygame.mixer.init() #Initierar ljuder
         self.graphics = {} #Kommer innehålla all grafik
         self.sounds = {}   #Och allt ljud
         self.options = options
