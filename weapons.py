@@ -77,14 +77,35 @@ class GasSource(Weapons):
         self.gas_clouds = []
         self.play_sound()
 
+#    def add_gas(self, initial_x, initial_y):
+#        for direction in self.directions:
+#            x = initial_x + self.directions[direction][0]
+#            y = initial_y + self.directions[direction][1]
+#            if not self.level.is_wall(x / tile.tile_size, y / tile.tile_size):
+#                self.gas_clouds.append(Gas(self.game, x, y, self.level))
+#                self.game.weapon_sprites.add(self.gas_clouds[-1])
+
+
     def add_gas(self):
+#        for direction in self.directions:
+#            x = self.start_x + self.directions[direction][0]
+#            y = self.start_y + self.directions[direction][1]
+#            if not self.level.is_wall(x / tile.tile_size, y / tile.tile_size):
+#                self.gas_clouds.append(Gas(self.game, x, y, self.level))
+#                self.game.weapon_sprites.add(self.gas_clouds[-1])
+#        while len(self.gas_clouds) <= 10:
+
+
+
+
+
         done = False
         if self.initial_gas:
             while not done:
                 x = self.start_x + self.directions[self.expand_directions[0]][0]
                 y = self.start_y + self.directions[self.expand_directions[0]][1]
                 if not self.level.is_wall(x / tile.tile_size, y / tile.tile_size):
-                    self.gas_clouds.append(Gas(self.game, x, y, self, self.level))
+                    self.gas_clouds.append(Gas(self.game, x, y, self.level))
                     self.game.weapon_sprites.add(self.gas_clouds[-1])
                     done = True
                 self.expand_directions.rotate(-1)
@@ -104,7 +125,7 @@ class GasSource(Weapons):
                     available_neighbor_tiles.remove((self.rect.x, self.rect.y))
                 if available_neighbor_tiles:
                     x, y = random.choice(available_neighbor_tiles)
-                    self.gas_clouds.append(Gas(self.game, x, y, self, self.level))
+                    self.gas_clouds.append(Gas(self.game, x, y, self.level))
                     self.game.weapon_sprites.add(self.gas_clouds[-1])
                     break
             else:
@@ -129,9 +150,8 @@ class GasSource(Weapons):
             self.delete()
 
 class Gas(Weapons):
-    def __init__(self, game, x, y, gas_source, level):
+    def __init__(self, game, x, y, level):
         Weapons.__init__(self, game, x, y, 'Gas')
-        self.gas_source = gas_source
         self.level = level
         self.directions = {'Up': (0, 32), 'Right': (32, 0), 'Down': (0, -32), 'Left': (-32, 0)}
 

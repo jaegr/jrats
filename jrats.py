@@ -8,11 +8,12 @@ import tile
 import weapons
 import level
 import rat
+import sys
+from collections import deque
 
 #TODO       powerups
 #TODO       egen musik? glob.glob(os.path.join('data', 'sounds', 'music', '*')) ?
 #TODO       bättre lösning för att spara banor
-#BUG        leveleditor - placera väggar och väg
 
 black = (   0, 0, 0)
 white = ( 255, 255, 255)
@@ -40,9 +41,11 @@ class MainMenu(object):
         self.menu_text = {'Play': {'text': 'Play game', 'x': 630, 'y': 300},
                           'Highscore': {'text': 'Highscore', 'x': 630, 'y': 350},
                           'Editor' : {'text': 'Level editor', 'x': 630, 'y': 400},
-                          'Exit': {'text': 'Exit', 'x': 630, 'y': 450}}
+                          'Options': {'text': 'Options', 'x': 630, 'y': 450},
+                          'Exit': {'text': 'Exit', 'x': 630, 'y': 500}}
 
         self.done = False
+        self.options = {'Difficulty': 'Normal', 'Music': 'No', 'Music volume': '0.5', 'Sound volume': '0.5'}
         self.image = pygame.image.load(os.path.join('data', 'images', 'main.png')).convert_alpha()
         self.rect = self.image.get_rect()
         self.initialize_text()
@@ -80,19 +83,18 @@ class MainMenu(object):
             rect = menu_item['rect']
             if rect.collidepoint(mouse_x, mouse_y):
                 if menu_item['text'] == 'Play game':
-   #                 pygame.mixer.music.stop()
-                    rats = Game()
-                    rats.main_loop()
-  #                  pygame.mixer.music.play(-1)
-  #              elif menu_item['text'] == 'Highscore':
-  #                  hs = HighScoreScreen()
-  #                  hs.main()
+                    rats = Game(self.options)
+                    score = rats.main_loop()
+                    game_over = GameOverScreen(score)
+                    game_over.main()
                 elif menu_item['text'] == 'Level editor':
                     editor = LevelEditor()
                     editor.main()
+                elif menu_item['text'] == 'Options':
+                    test = OptionsScreen(self.options)
+                    self.options = test.main()
                 elif menu_item['text'] == 'Exit':
                     self.done = True
-
 
 class HighScoreScreen(object):
 #    try:
@@ -111,6 +113,9 @@ class HighScoreScreen(object):
         self.main()
 
     def initialize_text(self):
+        """
+        Initializes all font objects
+        """
         text_x = 170
         text_y = 20
         screen.fill(black)
@@ -128,6 +133,151 @@ class HighScoreScreen(object):
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     done = True
+
+class OptionsScreen(object):
+    def __init__(self, choices):
+        self.choices = choices
+        self.options_font = pygame.font.Font(None, 20)
+        self.options_text = {'Difficulty':
+                                 {'text': 'Difficulty:', 'x': 100, 'y': 100, 'option': False, 'choices':
+                                    {
+                                    'Easy': {'text': 'Easy', 'x': 200, 'y': 100, 'option': True},
+                                    'Normal': {'text': 'Normal', 'x': 200, 'y': 120, 'option': True},
+                                    'Hard': {'text': 'Hard', 'x': 200, 'y': 140, 'option': True}}},
+
+                                'Music': {'text': 'Music:', 'x': 100, 'y': 200, 'option': False, 'choices':
+                                    {
+                                    'Yes': {'text': 'Yes', 'x': 200, 'y': 200, 'option': True},
+                                    'No': {'text': 'No', 'x': 200, 'y': 220, 'option': True}}},
+                                'Music volume': {'text': 'Music volume:', 'x': 100, 'y': 280, 'option': False, 'choices':
+                                    {
+                                    'Increase': {'text': '+', 'x': 245, 'y': 280, 'option': True},
+                                    'Value': {'text': self.choices['Music volume'], 'x': 220, 'y': 280, 'option': False},
+                                    'Decrease': {'text': '-', 'x': 210, 'y': 280, 'option': True}}},
+                                'Sound volume': {'text': 'Sound volume:', 'x': 100, 'y': 340, 'option': False, 'choices':
+                                    {
+                                    'Increase': {'text': '+', 'x': 245, 'y': 340, 'option': True},
+                                    'Value': {'text': self.choices['Sound volume'], 'x': 220, 'y': 340, 'option': False},
+                                    'Decrease': {'text': '-', 'x': 210, 'y': 340, 'option': True}}},
+                                'Back': {'text': 'Back', 'x': 100, 'y': 400, 'choices': ''},
+                                'Info': {'text': 'Add music to sounds/music folder. OGG is recommended, MP3-support limited.', 'x': 250, 'y': 200, 'choices': ''}}
+
+        self.initialize_font()
+
+    def initialize_font(self):
+        """Initialize all the font objects by giving them a render and a rect"""
+        for item in self.options_text:
+            self.options_text[item]['render'], self.options_text[item]['rect'] = self.get_render_and_rect(self.options_text[item])
+            for choice in self.options_text[item]['choices']:
+                if self.choices[item] == self.options_text[item]['choices'][choice]['text'] and 'volume' not in item:
+                    color = red
+                else:
+                    color = white
+                self.options_text[item]['choices'][choice]['render'], self.options_text[item]['choices'][choice]['rect'] = self.get_render_and_rect(self.options_text[item]['choices'][choice], color)
+
+    def set_color(self, item, choice, color):
+        """Sets color of the choice to the given color"""
+        self.options_text[item]['choices'][choice]['render'] = self.options_font.render(self.options_text[item]['choices'][choice]['text'], True, color)
+
+    def set_volume(self, item, choice):
+        current_volume = float(self.options_text[item]['choices']['Value']['text'])
+        if choice == 'Increase':
+            self.options_text[item]['choices']['Value']['text'] = str(1.0) if current_volume == 1.0 else str(current_volume + 0.1)
+        else:
+            self.options_text[item]['choices']['Value']['text'] = str(0.0) if current_volume == 0.0 else str(current_volume - 0.1)
+        self.options_text[item]['choices']['Value']['render'] = self.get_render_and_rect(self.options_text[item]['choices']['Value'], set_rect=False)
+        self.choices[item] = self.options_text[item]['choices']['Value']['text']
+        
+    def get_render_and_rect(self, text_item, color=white, set_render=True, set_rect=True):
+        """Returns a render and/or a rect"""
+        if set_render:
+            render = self.options_font.render(text_item['text'], True, color)
+            if not set_rect:
+                return render
+        if set_rect:
+            rect = render.get_rect(x = text_item['x'], y = text_item['y'])
+            if not set_render:
+                return rect
+        return render, rect
+
+
+    def OnClick(self, mouse_x, mouse_y):
+        """Handles clicks on options"""
+        for item in self.options_text:
+            if self.options_text['Back']['rect'].collidepoint(mouse_x, mouse_y):
+                return True
+            for choice in self.options_text[item]['choices']:
+                if self.options_text[item]['choices'][choice]['rect'].collidepoint(mouse_x, mouse_y):
+                    if self.choices[item] == choice: #If the choice is the same as the previous, return
+                        return
+                    if item == 'Sound volume' or item == 'Music volume':
+                        self.set_volume(item, choice)
+                    else:
+                        self.set_color(item, choice, red) #Change the color of the choice from black to red
+                        self.set_color(item, self.choices[item], white) #Change color of the previous choice from red to black
+                        self.choices[item] = choice #Set option to current choice
+        return False
+
+
+    def draw_font(self):
+        """Draws all rendered fonts"""
+        for item in self.options_text:
+            screen.blit(self.options_text[item]['render'], self.options_text[item]['rect'])
+            for choice in self.options_text[item]['choices']:
+                screen.blit(self.options_text[item]['choices'][choice]['render'], self.options_text[item]['choices'][choice]['rect'])
+
+    def main(self):
+        done = False
+        while not done:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    sys.exit()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    done = self.OnClick(event.pos[0], event.pos[1])
+            screen.fill(black)
+            self.draw_font()
+            pygame.display.flip()
+        return self.choices
+
+class HelpScreen(object):
+    def __init__(self):
+        pass
+
+class GameOverScreen(object):
+    def __init__(self, score):
+        self.gameover_font = pygame.font.Font(None, 50)
+        self.gameover_text = {'Total': {'text': 'Total number of rats killed:', 'x': 200, 'y': 200},
+                            'Score': {'text': str(score), 'x': 400, 'y': 250 },
+                            'Back': {'text': 'Main menu', 'x': 50, 'y': 600}}
+
+    def initialize_text(self):
+        for text_item in self.gameover_text.values():
+            render = self.gameover_font.render(text_item['text'], True, white)
+            rect = render.get_rect(x = text_item['x'], y = text_item['y'])
+            text_item['render'] = render
+            text_item['rect'] = rect
+
+    def draw_font(self):
+        for text_item in self.gameover_text.values():
+            screen.blit(text_item['render'], text_item['rect'])
+
+    def OnClick(self, mouse_x, mouse_y):
+        if self.gameover_text['Back']['rect'].collidepoint(mouse_x, mouse_y):
+            return True
+
+    def main(self):
+        done = False
+        while not done:
+            self.initialize_text()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    done = True
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    done = self.OnClick(event.pos[0], event.pos[1])
+            screen.fill(black)
+            self.draw_font()
+            pygame.display.flip()
+
 
 class LevelEditor(object):
     def __init__(self):
@@ -177,10 +327,8 @@ class LevelEditor(object):
             screen.blit(text_item['render'], text_item['rect'])
 
     def handle_mouse(self, mouse_x, mouse_y):
-        print self.active_tile
         aligned_x = mouse_x / self.tile_size
         aligned_y = mouse_y / self.tile_size
-        clicked_tile = self.map[aligned_y][aligned_x]
         if aligned_x < 20 and aligned_y < 20 and aligned_x > 0 and aligned_y > 0:
             if not self.active_tile:
                 self.active_tile = '.' if self.map[aligned_y][aligned_x] == '#' else '#'
@@ -234,17 +382,19 @@ class Menu_items(pygame.sprite.DirtySprite): #Skapar bilderna i menyn
 
 
 class Game(object):
-    def __init__(self, editor_map = None):
+    def __init__(self, options, editor_map = None):
         pygame.mixer.init(frequency=22050, size=-16, channels=2, buffer=4096) #Initierar ljuder
         self.graphics = {} #Kommer innehålla all grafik
         self.sounds = {}   #Och allt ljud
+        self.options = options
         self.initialize_graphics() #Metod för att ladda in all grafik
         self.initialize_sounds()   #Metod för att ladda in allt ljud
+        self.score = 0
+        self.music_event = pygame.USEREVENT
+        if self.options['Music'] == 'Yes':
+            self.initialize_music()
         self.editor_map = editor_map
         self.reset()               #reset innehåller alla som ska återställas vid omstart eller ny bana
-  #      pygame.mixer.music.load(os.path.join('data', 'sounds', 'Goof2.ogg'))
-  #      pygame.mixer.music.set_volume(0.2)
-  #      pygame.mixer.music.play(-1)
         self.board_width = self.board_height = 20 * tile.tile_size #Brädet är 21 tiles högt och brett, och varje tile är 32 x 32 pixlar
 
     def reset(self, level=1):
@@ -257,7 +407,7 @@ class Game(object):
         self.weapon_sprites = pygame.sprite.LayeredDirty()
         self.tile_sprites = pygame.sprite.LayeredDirty()
         self.dirty_tiles = pygame.sprite.LayeredDirty()
-        self.score = 0
+
         self.done = False #Anger om spelet är slut
         self.num_levels = 0
         self.create_level() #Skapar banan
@@ -270,14 +420,38 @@ class Game(object):
         self.menu_font = pygame.font.Font(None, 18) #Initierar texten i menyn
         self.win = False
         self.active_rectangle = pygame.Rect(0, 0, 0, 0) #Rektangeln som ritas ut runt det aktiva vapnet
-        self.lost = False
         self.active_weapon = None #Inget vapen är aktivt i början
         self.last_generated_weapon = pygame.time.get_ticks() #När ett vapen senast skapades
         self.generate_weapons() #Kör metoden för att generera vapen
         self.collision_time = pygame.time.get_ticks()
 
+
+    def initialize_music(self):
+        self.music = deque()
+        file_types = ['*.mp3', '*.ogg']
+        for file_type in file_types:
+            self.music.extend(glob.glob(os.path.join('data', 'sounds', 'music', file_type)))
+        if not len(self.music):
+            return
+        random.shuffle(self.music)
+        self.handle_music()
+
+    def handle_music(self):
+        pygame.mixer.music.load(self.music[0])
+        pygame.mixer.music.set_volume(float(self.options['Music volume']))
+        pygame.mixer.music.play()
+        pygame.mixer.music.set_endevent(self.music_event)
+        self.music.rotate()
+
     def initial_population(self):
-        for i in range(10):
+        difficulty = self.options['Difficulty']
+        if difficulty == 'Easy':
+            number_of_rats = 5
+        elif difficulty == 'Normal':
+            number_of_rats = 10
+        else:
+            number_of_rats = 15
+        for i in range(number_of_rats):
             self.create_rat(init=True)
 
     def get_number_of_levels(self):
@@ -328,6 +502,11 @@ class Game(object):
         self.sounds['Terminator'] = pygame.mixer.Sound(os.path.join('data', 'sounds', 'terminator.wav'))
         self.sounds['Gas source'] = pygame.mixer.Sound(os.path.join('data', 'sounds', 'gas.wav'))
         self.sounds['Ding'] = pygame.mixer.Sound(os.path.join('data', 'sounds', 'ding.wav'))
+        self.set_volume()
+
+    def set_volume(self):
+        for sound in self.sounds:
+            self.sounds[sound].set_volume(float(self.options['Sound volume']))
 
     def initialize_menu(self):
         self.menu_sprites = pygame.sprite.LayeredDirty() #Alla menysprites läggs in i en spritegroup
@@ -440,7 +619,7 @@ class Game(object):
         for name, info in self.menu_items.iteritems():
             text_items[name] = {'text': str(self.menu_items[name]['amount']), 'x': self.menu_items[name]['x'] + 40, 'y': self.menu_items[name]['y'] + 10}
         for text_item in text_items.values():
-            render = self.menu_font.render(text_item['text'], True, white)
+            render = self.menu_font.render(text_item['text'], True, white, black)
             render_rect = render.get_rect(x=text_item['x'], y=text_item['y'])
             screen.blit(render, render_rect)
 
@@ -483,12 +662,13 @@ class Game(object):
     def main_loop(self):
         while not self.done:
             for event in pygame.event.get():
-                #print event
                 if event.type == pygame.QUIT:
                     self.done = True
- #                   pygame.mixer.music.stop()
+                    pygame.mixer.music.stop()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     self.handle_mouse(event.pos[0], event.pos[1])
+                if event.type == self.music_event:
+                    self.handle_music()
             screen.fill(black, pygame.Rect(672, 0, 800 - 672, 672))
             clock.tick(60)
             self.generate_weapons()
@@ -521,17 +701,20 @@ class Game(object):
             pygame.display.update()
             self.check_game_over()
             if self.win and not self.editor_map:
-                self.done = True
                 self.level += 1
-                if not self.level > self.num_levels:
+                if self.level <= self.num_levels:
                     self.reset(self.level)
+                else:
+                    self.done = True
             elif self.win and self.editor_map:
                 self.done = True
+        pygame.mixer.music.stop()
+        return self.score
 
     def check_game_over(self): #testmetod
         population = self.population_count['M'] + self.population_count['F']
-        if population > 1500:
-            self.lost = True
+        if population > 50:
+            self.done = True
         elif population <= 0:
             self.win = True
 
@@ -587,7 +770,7 @@ class Game(object):
             for weapon2 in weapons2:
                 if weapon1 is weapon2 or weapon1 not in self.weapon_sprites or weapon2 not in self.weapon_sprites: #Om det är samma objekt, fortsätt
                     continue
-                if isinstance(weapon1, weapons.Explosion) and not isinstance(weapon2, weapons.Explosions) and not isinstance(weapon2, weapons.GasSource): #Om första vapnet är en explosion, och andra vapnet inte är det, hantera det (ta bort andra vapnet)
+                if isinstance(weapon1, weapons.Explosion) and not isinstance(weapon2, weapons.Explosion) and not isinstance(weapon2, weapons.GasSource): #Om första vapnet är en explosion, och andra vapnet inte är det, hantera det (ta bort andra vapnet)
                     weapon1.handle_collision(weapon2)
                 elif isinstance(weapon1, weapons.Weapons) and isinstance(weapon2, weapons.Terminator):
                     if isinstance(weapon1, weapons.ChangeGender): #Om ena vapnet är könsbyte och andra är terminator, gör om terminatorn till vanlig
