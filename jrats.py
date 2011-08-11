@@ -36,7 +36,6 @@ clock = pygame.time.Clock()
 class MainMenu(object):
     def __init__(self):
         self.menu_font = pygame.font.Font(None, 40)
-        #        self.help_item = {'text' : self.help_text, 'x' : 100, 'y': 100}
         self.menu_text = {'Play': {'text': 'Play game', 'x': 630, 'y': 300},
                           'Editor' : {'text': 'Level editor', 'x': 630, 'y': 350},
                           'Options': {'text': 'Options', 'x': 630, 'y': 400},
@@ -48,15 +47,8 @@ class MainMenu(object):
         self.image = pygame.image.load(os.path.join('data', 'images', 'main.png')).convert_alpha()
         self.rect = self.image.get_rect()
         self.initialize_text()
-#        pygame.mixer.music.load(os.path.join('data', 'sounds', 'sarabande.ogg'))
-#        pygame.mixer.music.set_volume(0.2)
-#        pygame.mixer.music.play(-1)
 
     def initialize_text(self):
-    #        render = self.help_font.render(self.help_text, True, black)
-    #        render_rect = render.get_rect(x = self.help_item['x'], y = self.help_item['y'])
-    #        self.help_item['render'] = render
-    #        self.help_item['rect'] = render_rect
         for menu_item in self.menu_text.values():
             render = self.menu_font.render(menu_item['text'], True, white)
             render_rect = render.get_rect(x=menu_item['x'], y=menu_item['y'])
@@ -412,7 +404,6 @@ class Game(object):
         self.male_ui_rect = pygame.Rect(700, 650, 50, 0) #Initierar mätaren för manliga råttor
         self.female_ui_rect = pygame.Rect(700, 650, 50, 0) #och mätaren för kvinnliga råttorr
         self.population_frame = pygame.Rect(700, 650, 50, -200) #Ramen runt mätaren
-        # font = pygame.font.match_font('arial')
         self.menu_font = pygame.font.Font(None, 18) #Initierar texten i menyn
         self.win = False
         self.active_rectangle = pygame.Rect(0, 0, 0, 0) #Rektangeln som ritas ut runt det aktiva vapnet
@@ -448,7 +439,12 @@ class Game(object):
         else:
             number_of_rats = 15
         for i in range(number_of_rats):
-            self.create_rat(init=True)
+            x = y = 0
+            while self.leveltest.is_wall(x, y): #Så länge som startposition är en vägg
+                x, y = random.randrange(21), random.randrange(21) #Slumpa fram nya index
+            x *= tile.tile_size #Omvanlda koordinaterna från index i map-arrayen till koordinater
+            y *= tile.tile_size
+            self.create_rat(x, y, isAdult=True)
 
     def get_number_of_levels(self):
         self.num_levels = self.leveltest.number_of_levels()
@@ -514,7 +510,6 @@ class Game(object):
         self.menu_items['Change gender female'] = {'x': 700, 'y': 320, 'amount': 100}
         self.menu_items['Nuke'] = {'x': 700, 'y': 360, 'amount': 100}
         self.menu_items['Gas source'] = {'x': 700, 'y': 400, 'amount': 100}
-        #     self.menu_items['Restart'] = { 'x' : 700, 'y' : 500, 'amount': 'Restart'}
         for name, coords in self.menu_items.iteritems():
             self.menu_sprites.add(Menu_items(self, name, coords['x'], coords['y'])) #Skapa sprites av alla vapen och lägg till i spritegroupen
 
@@ -714,13 +709,7 @@ class Game(object):
         elif population <= 0:
             self.win = True
 
-    def create_rat(self, x=0, y=0, init=False, set_gender=None, isAdult=False, direction=None, sterile = False): #Metod för att skapa nya råttor (lite rörig just nu)
-        if init: #Om det är spelstart
-            while self.leveltest.is_wall(x, y): #Så länge som startposition är en vägg
-                x, y = random.randrange(21), random.randrange(21) #Slumpa fram nya index
-            x *= tile.tile_size #Omvanlda koordinaterna från index i map-arrayen till koordinater
-            y *= tile.tile_size
-            isAdult = True #Alla startråttor ska vara vuxna
+    def create_rat(self, x=0, y=0, set_gender=None, isAdult=False, direction=None, sterile = False): #Metod för att skapa nya råttor (lite rörig just nu)
         if not direction: #Om råttan inte har en riktning, måste vi placera den rakt över en tile så att en riktning kan beräknas
             x = x - (x % 32)
             y = y - (y % 32)
@@ -732,7 +721,6 @@ class Game(object):
             self.male_rat_sprites.add(new_rat)
         else:
             self.female_rat_sprites.add(new_rat)
-       # print 'number of basic_rat:', len(self.male_rat_sprites) + len(self.female_rat_sprites) + len(self.child_rat_sprites)
 
     def collisions(self): #kollisionsdetektering
         mate_hit = pygame.sprite.groupcollide(self.female_rat_sprites, self.male_rat_sprites, False, False) #Kolla om några manliga och kvinnliga råttor kolliderar
@@ -777,43 +765,6 @@ class Game(object):
                         weapon1.delete()
                     else:
                         weapon1.handle_collision(weapon2)
-
-
-#import sys
-#if __name__ == "__main__":
-#
-#    if "profile" in sys.argv:
-#        import hotshot
-#        import hotshot.stats
-#        import tempfile
-#        import os
-#
-#        profile_data_fname = tempfile.mktemp("prf")
-#        try:
-#            prof = hotshot.Profile(profile_data_fname)
-#            prof.run('rats.main_loop()')
-#            del prof
-#            s = hotshot.stats.load(profile_data_fname)
-#            s.strip_dirs()
-#            print "cumulative\n\n"
-#            s.sort_stats('cumulative').print_stats()
-#            print "By time.\n\n"
-#            s.sort_stats('time').print_stats()
-#            del s
-#        finally:
-#            # clean up the temporary file name.
-#            try:
-#                os.remove(profile_data_fname)
-#            except:
-#                # may have trouble deleting ;)
-#                pass
-#    else:
-#        try:
-#
-#
-#
-#        except:
-#            traceback.print_exc(sys.stderr)
 
 rats = MainMenu()
 rats.main()

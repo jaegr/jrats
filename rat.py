@@ -83,7 +83,6 @@ class EnemyRat(Rat):
         self.sterile = sterile      #Råttorna blir sterila om de utsätts för strålning, men de föds aldrig som sterila
         self.birth = pygame.time.get_ticks()  #Hur länge sen de föddes. Barn blir vuxna efter 10 sekunder.
         Rat.__init__(self, direction) #Kör huvudklassens __init__
-       # print self.gender, self.adult, self.direction, self.pregnant, self.sterile, self.name, self.type
 
     def get_name(self):
         if not self.adult:
