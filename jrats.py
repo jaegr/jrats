@@ -12,7 +12,6 @@ import sys
 from collections import deque
 
 #TODO       powerups
-#TODO       help screen
 #TODO       bättre lösning för att spara banor
 
 black = (   0, 0, 0)
@@ -39,11 +38,10 @@ class MainMenu(object):
         self.menu_font = pygame.font.Font(None, 40)
         #        self.help_item = {'text' : self.help_text, 'x' : 100, 'y': 100}
         self.menu_text = {'Play': {'text': 'Play game', 'x': 630, 'y': 300},
-                          'Highscore': {'text': 'Highscore', 'x': 630, 'y': 350},
-                          'Editor' : {'text': 'Level editor', 'x': 630, 'y': 400},
-                          'Options': {'text': 'Options', 'x': 630, 'y': 450},
-                          'Help': {'text': 'Help', 'x': 630, 'y': 500},
-                          'Exit': {'text': 'Exit', 'x': 630, 'y': 550}}
+                          'Editor' : {'text': 'Level editor', 'x': 630, 'y': 350},
+                          'Options': {'text': 'Options', 'x': 630, 'y': 400},
+                          'Help': {'text': 'Help', 'x': 630, 'y': 450},
+                          'Exit': {'text': 'Exit', 'x': 630, 'y': 500}}
 
         self.done = False
         self.options = {'Difficulty': 'Normal', 'Music': 'No', 'Music volume': '0.5', 'Sound volume': '0.5'}
@@ -89,7 +87,7 @@ class MainMenu(object):
                     game_over = GameOverScreen(score)
                     game_over.main()
                 elif menu_item['text'] == 'Level editor':
-                    editor = LevelEditor()
+                    editor = LevelEditor(self.options)
                     editor.main()
                 elif menu_item['text'] == 'Options':
                     options = OptionsScreen(self.options)
@@ -277,8 +275,9 @@ class GameOverScreen(object):
 
 
 class LevelEditor(object):
-    def __init__(self):
+    def __init__(self, options):
         self.map = []
+        self.options = options
         self.done = False
         self.editor_font = pygame.font.Font(None, 20)
         self.editor_text = {'Play': {'text': 'Play', 'x': 700, 'y': 200},
@@ -337,7 +336,7 @@ class LevelEditor(object):
 
     def action(self, key_action):
         if key_action == 'Play':
-            game = Game(self.map)
+            game = Game(self.options, self.map)
             game.main_loop()
         elif key_action == 'Save':
             self.save()
