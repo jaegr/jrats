@@ -141,16 +141,28 @@ class HelpScreen(GameState):
                           'Gender change -',
                           'Nuke -',
                           'Toxic gas -']
+        self.back_button = {}
         self.initialize_text()
 
     def initialize_text(self):
         renders = [self.help_font.render(line, True, white) for line in self.help_strings]
         rects = [render.get_rect(x = 50, y = 50 + 20 * i) for i, render in enumerate(renders)]
         self.help_text = zip(renders, rects)
+        self.back_button['render'] = self.help_font.render('Back', True, white)
+        self.back_button['rect'] = self.back_button['render'].get_rect(x = 50, y = 600)
 
     def draw_text(self):
+        screen.blit(self.back_button['render'], self.back_button['rect'])
         for render, rect in self.help_text:
             screen.blit(render, rect)
+
+    def handle_mouse(self, mouse_x, mouse_y):
+        if self.back_button['rect'].collidepoint(mouse_x, mouse_y):
+            self.stack.pop()
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            self.handle_mouse(event.pos[0], event.pos[1])
 
     def update(self):
         screen.fill(black)
