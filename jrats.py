@@ -13,6 +13,9 @@ from collections import deque
 
 #TODO       powerups
 #TODO       bättre lösning för att spara banor
+#Då har din GameStateStack en stack av GameState-klasser (de klasser du har i jrats.py
+#                      just nu), och så innehåller den en loop som kallar Update() och Draw() på det objekt
+#                      som ligger längst upp på stacken.
 
 black = (   0, 0, 0)
 white = ( 255, 255, 255)
@@ -33,8 +36,43 @@ screen = pygame.display.set_mode(size)
 pygame.display.set_caption("j&R")
 clock = pygame.time.Clock()
 
-class MainMenu(object):
+class GameStateStack(object):
     def __init__(self):
+        self.stack = []
+        self.stack.append(MainMenu(self))
+
+    def main(self):
+        while self.stack:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    sys.exit()
+                self.stack[-1].handle_event(event)
+            self.stack[-1].update()
+
+    def push(self, state):
+        self.stack.append(state)
+
+    def pop(self, **kwargs):
+        self.stack.pop()
+        if kwargs:
+            self.stack[-1].recieve_values(**kwargs)
+
+
+class GameState(object):
+    
+    def update(self):
+        pass
+
+    def draw(self):
+        pass
+
+    def handle_event(self, event):
+        pass
+
+
+class MainMenu(GameState):
+    def __init__(self, stack):
+        self.stack = stack
         self.menu_font = pygame.font.Font(None, 40)
         self.menu_text = {'Play': {'text': 'Play game', 'x': 630, 'y': 300},
                           'Editor' : {'text': 'Level editor', 'x': 630, 'y': 350},
@@ -55,45 +93,45 @@ class MainMenu(object):
             menu_item['render'] = render
             menu_item['rect'] = render_rect
 
-    def main(self):
-        while not self.done:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.done = True
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    self.handle_mouse(event.pos[0], event.pos[1])
-            screen.fill(black)
-            screen.blit(self.image, self.rect)
-            for menu_item in self.menu_text.values():
-                screen.blit(menu_item['render'], menu_item['rect'])
-                #      screen.blit(self.help_item['render'], self.help_item['rect'])
-            pygame.display.flip()
+    def update(self):
+        screen.fill(black)
+        screen.blit(self.image, self.rect)
+        for menu_item in self.menu_text.values():
+            screen.blit(menu_item['render'], menu_item['rect'])
+        pygame.display.flip()
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            self.handle_mouse(event.pos[0], event.pos[1])
+
+    def recieve_values(self, **kwargs):
+        for key in kwargs:
+            if key == 'score':
+                self.score = kwargs['score']
+            elif key == 'options':
+                self.options = kwargs['options']
 
     def handle_mouse(self, mouse_x, mouse_y):
         for menu_item in self.menu_text.values():
             rect = menu_item['rect']
             if rect.collidepoint(mouse_x, mouse_y):
                 if menu_item['text'] == 'Play game':
-                    rats = Game(self.options)
-                    score = rats.main_loop()
-                    game_over = GameOverScreen(score)
-                    game_over.main()
+                    self.stack.push(Game(self.options, self.stack))
+#                    self.stack.push(GameOverScreen(score, self.stack))
                 elif menu_item['text'] == 'Level editor':
-                    editor = LevelEditor(self.options)
-                    editor.main()
+                    self.stack.push(LevelEditor(self.options, self.stack))
                 elif menu_item['text'] == 'Options':
-                    options = OptionsScreen(self.options)
-                    self.options = options.main()
+                    self.stack.push(OptionsScreen(self.options, self.stack))
                 elif menu_item['text'] == 'Help':
-                    help = HelpScreen()
-                    help.main()
+                    self.stack.push(HelpScreen(self.stack))
                 elif menu_item['text'] == 'Exit':
-                    self.done = True
+                    sys.exit()
                     
-class HelpScreen(object):
-    def __init__(self):
+class HelpScreen(GameState):
+    def __init__(self, stack):
+        self.stack = stack
         self.help_font = pygame.font.Font(None, 20)
-        self.help_text = ['The objective of jRats is to kill all the rats on the level. The game is over if the rat population reaches 50.',
+        self.help_strings = ['The objective of jRats is to kill all the rats on the level. The game is over if the rat population reaches 50.',
                           'You have a number of weapons to help you fight the rats, which are randomly generated and given to you.',
                           '',
                           'Stop sign - ',
@@ -106,26 +144,22 @@ class HelpScreen(object):
         self.initialize_text()
 
     def initialize_text(self):
-        self.help_renders = [self.help_font.render(line, True, white) for line in self.help_text]
-        self.help_rects = [render.get_rect(x = 50, y = 50 + 20 * i) for i, render in enumerate(self.help_renders)]
-        self.result = zip(self.help_renders, self.help_rects)
+        renders = [self.help_font.render(line, True, white) for line in self.help_strings]
+        rects = [render.get_rect(x = 50, y = 50 + 20 * i) for i, render in enumerate(renders)]
+        self.help_text = zip(renders, rects)
 
     def draw_text(self):
-        for render, rect in self.result:
+        for render, rect in self.help_text:
             screen.blit(render, rect)
 
-    def main(self):
-        done = False
-        while not done:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    done = True
-            screen.fill(black)
-            self.draw_text()
-            pygame.display.flip()
+    def update(self):
+        screen.fill(black)
+        self.draw_text()
+        pygame.display.flip()
 
-class OptionsScreen(object):
-    def __init__(self, choices):
+class OptionsScreen(GameState):
+    def __init__(self, choices, stack):
+        self.stack = stack
         self.choices = choices
         self.options_font = pygame.font.Font(None, 20)
         self.options_text = {'Difficulty':
@@ -191,11 +225,11 @@ class OptionsScreen(object):
         return render, rect
 
 
-    def OnClick(self, mouse_x, mouse_y):
+    def handle_mouse(self, mouse_x, mouse_y):
         """Handles clicks on options"""
         for item in self.options_text:
-            if self.options_text['Back']['rect'].collidepoint(mouse_x, mouse_y):
-                return True
+            if self.options_text['Back']['rect'].collidepoint(mouse_x, mouse_y) and item == 'Back':
+                self.stack.pop(options=self.choices)
             for choice in self.options_text[item]['choices']:
                 if self.options_text[item]['choices'][choice]['rect'].collidepoint(mouse_x, mouse_y):
                     if self.choices[item] == choice: #If the choice is the same as the previous, return
@@ -206,8 +240,6 @@ class OptionsScreen(object):
                         self.set_color(item, choice, red) #Change the color of the choice from black to red
                         self.set_color(item, self.choices[item], white) #Change color of the previous choice from red to black
                         self.choices[item] = choice #Set option to current choice
-        return False
-
 
     def draw_font(self):
         """Draws all rendered fonts"""
@@ -216,26 +248,25 @@ class OptionsScreen(object):
             for choice in self.options_text[item]['choices']:
                 screen.blit(self.options_text[item]['choices'][choice]['render'], self.options_text[item]['choices'][choice]['rect'])
 
-    def main(self):
-        done = False
-        while not done:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    sys.exit()
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    done = self.OnClick(event.pos[0], event.pos[1])
-            screen.fill(black)
-            self.draw_font()
-            pygame.display.flip()
-        return self.choices
+    def update(self):
+        screen.fill(black)
+        self.draw_font()
+        pygame.display.flip()
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            self.handle_mouse(event.pos[0], event.pos[1])
 
 
-class GameOverScreen(object):
-    def __init__(self, score):
+
+class GameOverScreen(GameState):
+    def __init__(self, score, stack):
+        self.stack = stack
         self.gameover_font = pygame.font.Font(None, 50)
         self.gameover_text = {'Total': {'text': 'Total number of rats killed:', 'x': 200, 'y': 200},
                             'Score': {'text': str(score), 'x': 400, 'y': 250 },
                             'Back': {'text': 'Main menu', 'x': 50, 'y': 600}}
+        self.initialize_text()
 
     def initialize_text(self):
         for text_item in self.gameover_text.values():
@@ -248,26 +279,23 @@ class GameOverScreen(object):
         for text_item in self.gameover_text.values():
             screen.blit(text_item['render'], text_item['rect'])
 
-    def OnClick(self, mouse_x, mouse_y):
+    def handle_mouse(self, mouse_x, mouse_y):
         if self.gameover_text['Back']['rect'].collidepoint(mouse_x, mouse_y):
-            return True
+            self.stack.pop()
 
-    def main(self):
-        done = False
-        while not done:
-            self.initialize_text()
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    done = True
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    done = self.OnClick(event.pos[0], event.pos[1])
-            screen.fill(black)
-            self.draw_font()
-            pygame.display.flip()
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            self.handle_mouse(event.pos[0], event.pos[1])
+
+    def update(self):
+        screen.fill(black)
+        self.draw_font()
+        pygame.display.flip()
 
 
-class LevelEditor(object):
-    def __init__(self, options):
+class LevelEditor(GameState):
+    def __init__(self, options, stack):
+        self.stack = stack
         self.map = []
         self.options = options
         self.done = False
@@ -328,32 +356,29 @@ class LevelEditor(object):
 
     def action(self, key_action):
         if key_action == 'Play':
-            game = Game(self.options, self.map)
-            game.main_loop()
+            self.stack.push(Game(self.options, self.stack, self.map))
         elif key_action == 'Save':
             self.save()
         elif key_action == 'Clear':
             self.initialize_map()
         elif key_action == 'Exit':
-            self.done = True
+            self.stack.pop()
 
-    def main(self):
-        while not self.done:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.done = True
-                if event.type == pygame.MOUSEMOTION and event.buttons[0]:
-                    self.motion = True
-                    self.handle_mouse(event.pos[0], event.pos[1])
-                elif self.motion or event.type == pygame.MOUSEBUTTONUP:
-                    self.active_tile = None
-                    self.motion = False
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    self.handle_mouse(event.pos[0], event.pos[1])
-            screen.fill(black)
-            self.draw_map()
-            self.draw_text()
-            pygame.display.flip()
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEMOTION and event.buttons[0]:
+            self.motion = True
+            self.handle_mouse(event.pos[0], event.pos[1])
+        elif self.motion or event.type == pygame.MOUSEBUTTONUP:
+            self.active_tile = None
+            self.motion = False
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            self.handle_mouse(event.pos[0], event.pos[1])
+
+    def update(self):
+        screen.fill(black)
+        self.draw_map()
+        self.draw_text()
+        pygame.display.flip()
 
 
 class Menu_items(pygame.sprite.DirtySprite): #Skapar bilderna i menyn
@@ -369,8 +394,9 @@ class Menu_items(pygame.sprite.DirtySprite): #Skapar bilderna i menyn
         self.visible = 0
 
 
-class Game(object):
-    def __init__(self, options, editor_map = None):
+class Game(GameState):
+    def __init__(self, options, stack, editor_map = None):
+        self.stack = stack
         pygame.mixer.init() #Initierar ljuder
         self.graphics = {} #Kommer innehålla all grafik
         self.sounds = {}   #Och allt ljud
@@ -650,62 +676,62 @@ class Game(object):
     def play_sound(self, sound):
         self.sounds[sound].play()
 
-    def main_loop(self):
-        while not self.done:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.done = True
-                    pygame.mixer.music.stop()
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    self.handle_mouse(event.pos[0], event.pos[1])
-                if event.type == self.music_event:
-                    self.handle_music()
-            screen.fill(black, pygame.Rect(672, 0, 800 - 672, 672))
-            clock.tick(60)
-            self.generate_weapons()
-            self.update_sprites()
-            self.collisions()
-            self.draw_ui()
-            #            game_rects = []
-            #            game_rects.append(self.male_rat_sprites.draw(screen))
-            #            game_rects.append(self.female_rat_sprites.draw(screen))
-            #            game_rects.append(self.child_rat_sprites.draw(screen))
-            #            game_rects.append(self.weapon_sprites.draw(screen))
-            #            game_rects.append(self.tile_sprites.draw(screen))
-            tile_rects = self.tile_sprites.draw(screen)
-        #    dirty_rects = self.dirty_tiles.draw(screen)
-            weapon_rects = self.weapon_sprites.draw(screen)
-            male_rects = self.male_rat_sprites.draw(screen) #Räkna ut alla sprite-rektanglar
-            female_rects = self.female_rat_sprites.draw(screen)
-            child_rects = self.child_rat_sprites.draw(screen)
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            self.handle_mouse(event.pos[0], event.pos[1])
+        if event.type == self.music_event:
+            self.handle_music()
+
+    def update(self):
+        screen.fill(black, pygame.Rect(672, 0, 800 - 672, 672))
+        clock.tick(60)
+        self.generate_weapons()
+        self.update_sprites()
+        self.collisions()
+        self.draw_ui()
+        #            game_rects = []
+        #            game_rects.append(self.male_rat_sprites.draw(screen))
+        #            game_rects.append(self.female_rat_sprites.draw(screen))
+        #            game_rects.append(self.child_rat_sprites.draw(screen))
+        #            game_rects.append(self.weapon_sprites.draw(screen))
+        #            game_rects.append(self.tile_sprites.draw(screen))
+        tile_rects = self.tile_sprites.draw(screen)
+    #    dirty_rects = self.dirty_tiles.draw(screen)
+        weapon_rects = self.weapon_sprites.draw(screen)
+        male_rects = self.male_rat_sprites.draw(screen) #Räkna ut alla sprite-rektanglar
+        female_rects = self.female_rat_sprites.draw(screen)
+        child_rects = self.child_rat_sprites.draw(screen)
 
 
-            menu_rects = self.menu_sprites.draw(screen)
-            self.process_text() #Hantera all text
-            #            pygame.display.update(male_rects)
-            #            pygame.display.update(female_rects)
-            #            pygame.display.update(child_rects)
-            #            pygame.display.update(weapon_rects)
-            #            pygame.display.update(menu_rects)
-            ##
-            #            pygame.display.update(self.active_rectangle)
-            pygame.display.update()
-            self.check_game_over()
-            if self.win and not self.editor_map:
-                self.level += 1
-                if self.level <= self.num_levels:
-                    self.reset(self.level)
-                else:
-                    self.done = True
-            elif self.win and self.editor_map:
-                self.done = True
+        menu_rects = self.menu_sprites.draw(screen)
+        self.process_text() #Hantera all text
+        #            pygame.display.update(male_rects)
+        #            pygame.display.update(female_rects)
+        #            pygame.display.update(child_rects)
+        #            pygame.display.update(weapon_rects)
+        #            pygame.display.update(menu_rects)
+        ##
+        #            pygame.display.update(self.active_rectangle)
+        pygame.display.update()
+        self.check_game_over()
+        if self.win and not self.editor_map:
+            self.level += 1
+            if self.level <= self.num_levels:
+                self.reset(self.level)
+            else:
+                self.game_over()
+        elif self.win and self.editor_map:
+            self.stack.pop()
+
+    def game_over(self):
         pygame.mixer.music.stop()
-        return self.score
+        self.stack.pop()
+        self.stack.push(GameOverScreen(self.score, self.stack))
 
     def check_game_over(self): #testmetod
         population = self.population_count['M'] + self.population_count['F']
-        if population > 50:
-            self.done = True
+        if population > 10:
+            self.game_over()
         elif population <= 0:
             self.win = True
 
@@ -766,6 +792,6 @@ class Game(object):
                     else:
                         weapon1.handle_collision(weapon2)
 
-rats = MainMenu()
-rats.main()
+game = GameStateStack()
+game.main()
 pygame.quit()
