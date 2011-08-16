@@ -66,104 +66,50 @@ class GasSource(Weapons):
         Weapons.__init__(self, game, x, y, 'Gas source')
         self.level = level
         self.gas_timer = pygame.time.get_ticks() #Kollar när ett nytt gasmoln ska skapas
-        self.depth = 1 #Hur långt ifrån gaskällan vi är (t.ex. 2 * 32 pixlar)
-        self.expand_directions = deque(['Up', 'Right', 'Down', 'Left'])
         self.start_x = x
         self.start_y = y
         self.index = 1
         self.initial_gas = True
         self.start_removing = False
-        self.directions = {'Up': (0, 32), 'Right': (32, 0), 'Down': (0, -32), 'Left': (-32, 0)}
+        self.dir = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         self.gas_clouds = []
+        self.coords = []
+        self.checked_coords = [(x,y)]
+        self.initialize_gas(self.start_x / 32, self.start_y/ 32)
         self.play_sound()
 
-#    def add_gas(self, initial_x, initial_y):
-#        for direction in self.directions:
-#            x = initial_x + self.directions[direction][0]
-#            y = initial_y + self.directions[direction][1]
-#            if not self.level.is_wall(x / tile.tile_size, y / tile.tile_size):
-#                self.gas_clouds.append(Gas(self.game, x, y, self.level))
-#                self.game.weapon_sprites.add(self.gas_clouds[-1])
-
-
-    def add_gas(self):
-#        for direction in self.directions:
-#            x = self.start_x + self.directions[direction][0]
-#            y = self.start_y + self.directions[direction][1]
-#            if not self.level.is_wall(x / tile.tile_size, y / tile.tile_size):
-#                self.gas_clouds.append(Gas(self.game, x, y, self.level))
-#                self.game.weapon_sprites.add(self.gas_clouds[-1])
-#        while len(self.gas_clouds) <= 10:
-
-
-
-
-
-        done = False
-        if self.initial_gas:
-            while not done:
-                x = self.start_x + self.directions[self.expand_directions[0]][0]
-                y = self.start_y + self.directions[self.expand_directions[0]][1]
-                if not self.level.is_wall(x / tile.tile_size, y / tile.tile_size):
-                    self.gas_clouds.append(Gas(self.game, x, y, self.level))
-                    self.game.weapon_sprites.add(self.gas_clouds[-1])
-                    done = True
-                self.expand_directions.rotate(-1)
-                if self.expand_directions[0] == 'Up':
-                    self.initial_gas = False
-                    done = True
-                    if len(self.gas_clouds) == 0: #Om det inte finns utrymme att släppa ut gasen
-                        self.delete()
-                        return
-        else:
-            for cloud in self.gas_clouds:
-                available_neighbor_tiles = cloud.check_neighbors()
-                for cloud in self.gas_clouds:
-                    if (cloud.rect.x, cloud.rect.y) in available_neighbor_tiles:
-                        available_neighbor_tiles.remove((cloud.rect.x, cloud.rect.y))
-                if (self.rect.x, self.rect.y) in available_neighbor_tiles:
-                    available_neighbor_tiles.remove((self.rect.x, self.rect.y))
-                if available_neighbor_tiles:
-                    x, y = random.choice(available_neighbor_tiles)
-                    self.gas_clouds.append(Gas(self.game, x, y, self.level))
-                    self.game.weapon_sprites.add(self.gas_clouds[-1])
-                    break
-            else:
-                self.start_removing = True
+    def initialize_gas(self, x, y):
+        for x_offset, y_offset in self.dir:
+            if len(self.coords) <= 10:
+                new_x = x + x_offset
+                new_y = y + y_offset
+                if not self.level.is_wall(new_x, new_y) and (new_x, new_y) not in self.coords and (new_x * 32, new_y * 32) != (self.start_x, self.start_y):
+                    self.coords.append((new_x, new_y))
+        if len(self.coords) <= 10 and self.coords and len(set(self.coords) - set(self.checked_coords)) > 0:
+            x, y = random.choice(list(set(self.coords) - set(self.checked_coords)))
+            self.checked_coords.append((x,y))
+            self.initialize_gas(x, y)
 
     def update(self):
-        if len(self.gas_clouds) > 10:
-            self.start_removing = True
-        if pygame.time.get_ticks() - self.gas_timer > 100 and not self.start_removing:
-            self.add_gas()
-            self.gas_timer = pygame.time.get_ticks()
-        elif self.start_removing:
-            self.remove_gas()
-
-    def remove_gas(self):
         if pygame.time.get_ticks() - self.gas_timer > 100:
-            gas_cloud = random.choice(self.gas_clouds)
-            gas_cloud.delete()
-            self.gas_clouds.remove(gas_cloud)
+            if self.coords:
+                x, y = self.coords.pop(0)
+                self.gas_clouds.append(Gas(self.game, x * 32, y * 32, self.level))
+                self.game.weapon_sprites.add(self.gas_clouds[-1])
+            else:
+                if len(self.gas_clouds) > 0:
+                    gas_cloud = random.choice(self.gas_clouds)
+                    gas_cloud.delete()
+                    self.gas_clouds.remove(gas_cloud)
+                else:
+                    self.delete()
             self.gas_timer = pygame.time.get_ticks()
-        elif not len(self.gas_clouds):
-            self.delete()
+
 
 class Gas(Weapons):
     def __init__(self, game, x, y, level):
         Weapons.__init__(self, game, x, y, 'Gas')
         self.level = level
-        self.directions = {'Up': (0, 32), 'Right': (32, 0), 'Down': (0, -32), 'Left': (-32, 0)}
-
-    def check_neighbors(self):
-        available_neighbor_tiles = []
-        for direction in self.directions.keys():
-            x = self.rect.x + self.directions[direction][0]
-            y = self.rect.y + self.directions[direction][1]
-            if not self.level.is_wall(x / 32, y / 32):
-                available_neighbor_tiles.append((x, y))
-        return available_neighbor_tiles
-
 
     def handle_collision(self, rat):
         self.game.score += 1

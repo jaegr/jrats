@@ -42,12 +42,13 @@ class GameStateStack(object):
         self.stack.append(MainMenu(self))
 
     def main(self):
-        while self.stack:
+        while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     sys.exit()
                 self.stack[-1].handle_event(event)
             self.stack[-1].update()
+            self.stack[-1].draw()
 
     def push(self, state):
         self.stack.append(state)
@@ -64,10 +65,13 @@ class GameState(object):
         pass
 
     def draw(self):
-        pass
+        screen.fill(black)
+        self.draw_text()
+        pygame.display.flip()
 
     def handle_event(self, event):
-        pass
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            self.handle_mouse(event.pos[0], event.pos[1])
 
 
 class MainMenu(GameState):
@@ -93,23 +97,22 @@ class MainMenu(GameState):
             menu_item['render'] = render
             menu_item['rect'] = render_rect
 
-    def update(self):
-        screen.fill(black)
-        screen.blit(self.image, self.rect)
+    def draw_text(self):
         for menu_item in self.menu_text.values():
             screen.blit(menu_item['render'], menu_item['rect'])
+
+    def draw(self):
+        screen.fill(black)
+        screen.blit(self.image, self.rect)
+        self.draw_text()
         pygame.display.flip()
 
-    def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            self.handle_mouse(event.pos[0], event.pos[1])
-
     def recieve_values(self, **kwargs):
-        for key in kwargs:
+        for key, value in kwargs.items():
             if key == 'score':
-                self.score = kwargs['score']
+                self.score = value
             elif key == 'options':
-                self.options = kwargs['options']
+                self.options = value
 
     def handle_mouse(self, mouse_x, mouse_y):
         for menu_item in self.menu_text.values():
@@ -159,15 +162,6 @@ class HelpScreen(GameState):
     def handle_mouse(self, mouse_x, mouse_y):
         if self.back_button['rect'].collidepoint(mouse_x, mouse_y):
             self.stack.pop()
-
-    def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            self.handle_mouse(event.pos[0], event.pos[1])
-
-    def update(self):
-        screen.fill(black)
-        self.draw_text()
-        pygame.display.flip()
 
 class OptionsScreen(GameState):
     def __init__(self, choices, stack):
@@ -253,22 +247,12 @@ class OptionsScreen(GameState):
                         self.set_color(item, self.choices[item], white) #Change color of the previous choice from red to black
                         self.choices[item] = choice #Set option to current choice
 
-    def draw_font(self):
+    def draw_text(self):
         """Draws all rendered fonts"""
         for item in self.options_text:
             screen.blit(self.options_text[item]['render'], self.options_text[item]['rect'])
             for choice in self.options_text[item]['choices']:
                 screen.blit(self.options_text[item]['choices'][choice]['render'], self.options_text[item]['choices'][choice]['rect'])
-
-    def update(self):
-        screen.fill(black)
-        self.draw_font()
-        pygame.display.flip()
-
-    def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            self.handle_mouse(event.pos[0], event.pos[1])
-
 
 
 class GameOverScreen(GameState):
@@ -287,22 +271,13 @@ class GameOverScreen(GameState):
             text_item['render'] = render
             text_item['rect'] = rect
 
-    def draw_font(self):
+    def draw_text(self):
         for text_item in self.gameover_text.values():
             screen.blit(text_item['render'], text_item['rect'])
 
     def handle_mouse(self, mouse_x, mouse_y):
         if self.gameover_text['Back']['rect'].collidepoint(mouse_x, mouse_y):
             self.stack.pop()
-
-    def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            self.handle_mouse(event.pos[0], event.pos[1])
-
-    def update(self):
-        screen.fill(black)
-        self.draw_font()
-        pygame.display.flip()
 
 
 class LevelEditor(GameState):
@@ -386,7 +361,7 @@ class LevelEditor(GameState):
         elif event.type == pygame.MOUSEBUTTONDOWN:
             self.handle_mouse(event.pos[0], event.pos[1])
 
-    def update(self):
+    def draw(self):
         screen.fill(black)
         self.draw_map()
         self.draw_text()
@@ -695,11 +670,22 @@ class Game(GameState):
             self.handle_music()
 
     def update(self):
-        screen.fill(black, pygame.Rect(672, 0, 800 - 672, 672))
         clock.tick(60)
         self.generate_weapons()
         self.update_sprites()
         self.collisions()
+        self.check_game_over()
+        if self.win and not self.editor_map:
+            self.level += 1
+            if self.level <= self.num_levels:
+                self.reset(self.level)
+            else:
+                self.game_over()
+        elif self.win and self.editor_map:
+            self.stack.pop()
+
+    def draw(self):
+        screen.fill(black, pygame.Rect(672, 0, 800 - 672, 672))
         self.draw_ui()
         #            game_rects = []
         #            game_rects.append(self.male_rat_sprites.draw(screen))
@@ -725,15 +711,8 @@ class Game(GameState):
         ##
         #            pygame.display.update(self.active_rectangle)
         pygame.display.update()
-        self.check_game_over()
-        if self.win and not self.editor_map:
-            self.level += 1
-            if self.level <= self.num_levels:
-                self.reset(self.level)
-            else:
-                self.game_over()
-        elif self.win and self.editor_map:
-            self.stack.pop()
+
+
 
     def game_over(self):
         pygame.mixer.music.stop()
@@ -742,7 +721,7 @@ class Game(GameState):
 
     def check_game_over(self): #testmetod
         population = self.population_count['M'] + self.population_count['F']
-        if population > 10:
+        if population > 50:
             self.game_over()
         elif population <= 0:
             self.win = True
