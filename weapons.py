@@ -68,9 +68,6 @@ class GasSource(Weapons):
         self.gas_timer = pygame.time.get_ticks() #Kollar när ett nytt gasmoln ska skapas
         self.start_x = x
         self.start_y = y
-        self.index = 1
-        self.initial_gas = True
-        self.start_removing = False
         self.dir = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         self.gas_clouds = []
         self.coords = []
