@@ -26,10 +26,8 @@ class Level(object):
         else:
             self.map = self.editor_map
             dir = os.path.join('data', 'images')
-            print dir
             available_tilesets = []
             for name in os.listdir(dir):
-                print os.path.isdir(name)
                 if os.path.isdir(os.path.join(dir, name)):
                     available_tilesets.append(name)
             self.tile_set = random.choice(available_tilesets)
