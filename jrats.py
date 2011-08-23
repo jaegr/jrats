@@ -154,7 +154,12 @@ class HelpScreen(GameState):
                           'Bomb - The bomb will explode five seconds after being placed, and the explosion will kill everything in its way.',
                           'Gender change - Will change the gender of one rat. Will also turn terminator rats into a regular rat.',
                           'Nuke - Sterilizes all rats who come in contact with the radiation. Sterilized rats can\'t have babies.',
-                          'Toxic waste - All rats that come in contact with the toxic gas die.']
+                          'Toxic waste - All rats that come in contact with the toxic gas die.',
+                          '',
+                          'The game also has a level editor. You make a level by drawing on the level editor board.', 
+                          'Dark tiles represent walls and light tiles represent paths. You can test your map by pressing Play.',
+                          'When you save your map, a text file named "temp_map.txt" is created in the jrats/data directory.',
+                          'Use this file to create your own level packs. Take a look at "map.txt" to see how the map file is structured.']
         self.back_button = {}
         self.initialize_text()
 
