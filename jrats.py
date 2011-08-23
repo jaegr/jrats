@@ -159,6 +159,7 @@ class HelpScreen(GameState):
         self.initialize_text()
 
     def initialize_text(self):
+        """Creates renders and rects from the text in help_strings and gets a render and rect for the back button"""
         renders = [self.help_font.render(line, True, white) for line in self.help_strings]
         rects = [render.get_rect(x = 50, y = 50 + 20 * i) for i, render in enumerate(renders)]
         self.help_text = zip(renders, rects)
@@ -166,17 +167,21 @@ class HelpScreen(GameState):
         self.back_button['rect'] = self.back_button['render'].get_rect(x = 50, y = 600)
 
     def draw_text(self):
+        """Draws the help text and the back button text"""
         screen.blit(self.back_button['render'], self.back_button['rect'])
         for render, rect in self.help_text:
             screen.blit(render, rect)
 
     def handle_mouse(self, mouse_x, mouse_y):
+        """Handles clicking on the back button"""
         if self.back_button['rect'].collidepoint(mouse_x, mouse_y):
             self.stack.pop()
 
 class OptionsScreen(GameState):
+    """Options screen game state"""
     def __init__(self, choices, stack):
         self.stack = stack
+        #Gets current options from the main menu state
         self.choices = choices
         self.options_font = pygame.font.Font(None, 20)
         #All options have a descriptive label, as well as a sub-dictionary of the available choices
@@ -211,6 +216,7 @@ class OptionsScreen(GameState):
         for item in self.options_text:
             self.options_text[item]['render'], self.options_text[item]['rect'] = self.get_render_and_rect(self.options_text[item])
             for choice in self.options_text[item]['choices']:
+                #Checks if the option is the selected option, and in that case make it red instead of white
                 if self.choices[item] == self.options_text[item]['choices'][choice]['text'] and 'volume' not in item:
                     color = red
                 else:
@@ -222,10 +228,13 @@ class OptionsScreen(GameState):
         self.options_text[item]['choices'][choice]['render'] = self.options_font.render(self.options_text[item]['choices'][choice]['text'], True, color)
 
     def set_volume(self, item, choice):
+        """Handles changes volume options changes"""
         current_volume = float(self.options_text[item]['choices']['Value']['text'])
         if choice == 'Increase':
+            #Only increase volume if current_volume < 1
             self.options_text[item]['choices']['Value']['text'] = str(1.0) if current_volume == 1.0 else str(current_volume + 0.1)
         else:
+            #Only decrease volume if current_volume > 0
             self.options_text[item]['choices']['Value']['text'] = str(0.0) if current_volume == 0.0 else str(current_volume - 0.1)
         self.options_text[item]['choices']['Value']['render'] = self.get_render_and_rect(self.options_text[item]['choices']['Value'], set_rect=False)
         self.choices[item] = self.options_text[item]['choices']['Value']['text']
@@ -279,6 +288,7 @@ class GameOverScreen(GameState):
         self.initialize_text()
 
     def initialize_text(self):
+        """Gets renders and rects for items in gameover_text""" 
         for text_item in self.gameover_text.values():
             render = self.gameover_font.render(text_item['text'], True, white)
             rect = render.get_rect(x = text_item['x'], y = text_item['y'])
@@ -286,10 +296,12 @@ class GameOverScreen(GameState):
             text_item['rect'] = rect
 
     def draw_text(self):
+        """Draws items in gameover_text"""
         for text_item in self.gameover_text.values():
             screen.blit(text_item['render'], text_item['rect'])
 
     def handle_mouse(self, mouse_x, mouse_y):
+        """Handles mouse clicks"""
         if self.gameover_text['Back']['rect'].collidepoint(mouse_x, mouse_y):
             self.stack.pop()
 
@@ -313,6 +325,7 @@ class LevelEditor(GameState):
         self.active_tile = None
 
     def initialize_text(self):
+        """Gets renders and rects for items in editor_text"""
         for text_item in self.editor_text.values():
             render = self.editor_font.render(text_item['text'], True, white)
             rect = render.get_rect(x = text_item['x'], y = text_item['y'])
@@ -320,6 +333,8 @@ class LevelEditor(GameState):
             text_item['rect'] = rect
 
     def initialize_map(self):
+        """Initializes an empty map array"""
+        #Creates a 20x20 two dimensional array which consists of '.' inside a frame of '#'
         self.map = [['.' if x != 0 and y != 0 and x != 20 and y != 20 else '#' for x in range(21)] for y in range(21)]
 
     def save(self):
@@ -331,10 +346,12 @@ class LevelEditor(GameState):
 
 
     def draw_map(self):
+        """Draws the map"""
         x = 0
         y = 0
         for i, row in enumerate(self.map):
             for n, col in enumerate(self.map):
+                #For each item in self.map, draw either a light_gray or a dark_gray rectangle based on the item character
                 color = light_gray if self.map[i][n] == '.' else dark_gray
                 pygame.draw.rect(screen, color, pygame.Rect(x, y, self.tile_size, self.tile_size))
                 x += self.tile_size
@@ -342,10 +359,14 @@ class LevelEditor(GameState):
             x = 0
 
     def draw_text(self):
+        """Draws the text in the menu"""
         for text_item in self.editor_text.values():
             screen.blit(text_item['render'], text_item['rect'])
 
     def handle_mouse(self, mouse_x, mouse_y):
+        """Handles mouse clicks and clicks and drags"""
+        #active_tile tracks which tile is currently being drawn 
+        #You can draw either a path or a wall by clicking a tile of the opposite type.
         aligned_x = mouse_x / self.tile_size
         aligned_y = mouse_y / self.tile_size
         if aligned_x < 20 and aligned_y < 20 and aligned_x > 0 and aligned_y > 0:
@@ -358,6 +379,7 @@ class LevelEditor(GameState):
                 self.action(text_item['text'])
 
     def action(self, key_action):
+        """Executes an action based on which button is clicked"""
         if key_action == 'Play':
             self.stack.push(Game(self.options, self.stack, self.map))
         elif key_action == 'Save':
@@ -368,6 +390,9 @@ class LevelEditor(GameState):
             self.stack.pop()
 
     def handle_event(self, event):
+        """Handles mouse events"""
+        #If the player is clicking and dragging to draw, set motion = True, which will keep drawing the acting tile where the user drags the cursor.
+        #Once the user releases the mouse button, stop drawing and reset active_tile
         if event.type == pygame.MOUSEMOTION and event.buttons[0]:
             self.motion = True
             self.handle_mouse(event.pos[0], event.pos[1])
@@ -378,13 +403,15 @@ class LevelEditor(GameState):
             self.handle_mouse(event.pos[0], event.pos[1])
 
     def draw(self):
+        """Draw the graphics"""
         screen.fill(black)
         self.draw_map()
         self.draw_text()
         pygame.display.flip()
 
 
-class Menu_items(pygame.sprite.DirtySprite): #Skapar bilderna i menyn
+class Menu_items(pygame.sprite.DirtySprite): 
+    """Class for handling the images in the game menu"""
     def __init__(self, game, name, x, y):
         pygame.sprite.DirtySprite.__init__(self)
         self.game = game
@@ -541,14 +568,19 @@ class Game(GameState):
     def initialize_menu(self):
 	"""Assign (x,y) values and set the initial amount to every item in the menu, then add to a spritegroup."""
         self.menu_sprites = pygame.sprite.LayeredDirty() 
-        self.menu_items['Stop sign'] = {'x': 700, 'y': 120, 'amount': 100} 
-        self.menu_items['Poison'] = {'x': 700, 'y': 160, 'amount': 100}
-        self.menu_items['Terminator'] = {'x': 700, 'y': 200, 'amount': 100}
-        self.menu_items['Bomb'] = {'x': 700, 'y': 240, 'amount': 100}
-        self.menu_items['Change gender male'] = {'x': 700, 'y': 280, 'amount': 100}
-        self.menu_items['Change gender female'] = {'x': 700, 'y': 320, 'amount': 100}
-        self.menu_items['Nuke'] = {'x': 700, 'y': 360, 'amount': 100}
-        self.menu_items['Gas source'] = {'x': 700, 'y': 400, 'amount': 100}
+        #If player is testing a map from the level editor, give 100 of each weapon
+        if self.editor_map:
+            amount = 100
+        else:
+            amount = 0
+        self.menu_items['Stop sign'] = {'x': 700, 'y': 120, 'amount': amount} 
+        self.menu_items['Poison'] = {'x': 700, 'y': 160, 'amount': amount}
+        self.menu_items['Terminator'] = {'x': 700, 'y': 200, 'amount': amount}
+        self.menu_items['Bomb'] = {'x': 700, 'y': 240, 'amount': amount}
+        self.menu_items['Change gender male'] = {'x': 700, 'y': 280, 'amount': amount}
+        self.menu_items['Change gender female'] = {'x': 700, 'y': 320, 'amount': amount}
+        self.menu_items['Nuke'] = {'x': 700, 'y': 360, 'amount': amount}
+        self.menu_items['Gas source'] = {'x': 700, 'y': 400, 'amount': amount}
         for name, coords in self.menu_items.iteritems():
             self.menu_sprites.add(Menu_items(self, name, coords['x'], coords['y'])) 
 
@@ -703,6 +735,7 @@ class Game(GameState):
             self.handle_music()
 
     def update(self):
+        """Updates game logic"""
         clock.tick(60)
         self.generate_weapons()
         self.update_sprites()
@@ -718,6 +751,7 @@ class Game(GameState):
             self.stack.pop()
 
     def draw(self):
+        """Draw all graphics"""
         screen.fill(black, pygame.Rect(672, 0, 800 - 672, 672))
         self.draw_ui()
         #            game_rects = []

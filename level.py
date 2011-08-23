@@ -7,7 +7,7 @@ import tile
 
 class Level(object):
     """A class for handling game levels"""
-    def __init__(self, level, game, editor_map): #level är startnivån (dvs. 1)
+    def __init__(self, level, game, editor_map): 
         """Takes the level number, game instance and editor_map (is the level run from the level editor?) as input"""
         self.map = []
         self.editor_map = editor_map
@@ -21,8 +21,8 @@ class Level(object):
         if not self.editor_map:
             parser = self.get_parser()
             self.tile_set = parser.get('level{0}'.format(self.level), 'tileset')
-            for row in parser.get('level{0}'.format(self.level), 'map').split(): #Och läs in map under rubriken level{nivå}
-                self.map.append(list(row)) #Raderna görs om till en lista och läggs till i self.map
+            for row in parser.get('level{0}'.format(self.level), 'map').split():
+                self.map.append(list(row)) 
         else:
             self.map = self.editor_map
             dir = os.path.join('data', 'images')
