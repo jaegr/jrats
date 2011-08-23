@@ -1,12 +1,7 @@
-Som inlämningsuppgift har vi tänkt oss att du ska bygga någon sorts spel. Du väljer här något som du själv tycker är roligt, spännande och utmanande. En spelidé som vi tror att alla kan klara av är att du bygger ut din lösning av Uppgift 4 till en frågesport om flaggor eller fåglar där man får poäng efter de regler som du sätter upp.
+Based on Rats!
 
-Ett krav på spelet är att det, precis som lösningen av Uppgift 3, ska gå att starta om. I din lösning så ska det även ingå en användarinstruktion som är så tydlig så att även personer med dålig datorvana kan förstå hur spelet startas och vilka regler som gäller. Detta kan med fördel implementeras som ett menysystem i spelets grafiska gränssnitt.
+Requires Pygame
 
-Ditt betyg på kursen sätts utifrån din lösning av inlämninguppgiften. För de högre betygen (A och B) så krävs det att du lägger ner både tid och omsorg. Uppgiften kommer att betygsättas utifrån följande kriterier:
-F: Frånvaro av en fungerande spelidé
-Fx: Mindre brister i en för övrigt genomförd spelidé
-E: En en robust och fungerande implementation av en spelidé
-D: Välstrukturerad kod med med ett komplett grafiskt gränssnitt
-C: Lösningen kompletterad med en användarinstruktion
-B: En mer komplex spelidé med kreativa multimediatillämpningar
-A: En kreativ och egenutformad lösning med deltekniker hämtade utanför kursinnehållet
+To run:
+
+python jrats.py
