@@ -6,7 +6,9 @@ import ConfigParser
 import tile
 
 class Level(object):
+    """A class for handling game levels"""
     def __init__(self, level, game, editor_map): #level är startnivån (dvs. 1)
+        """Takes the level number, game instance and editor_map (is the level run from the level editor?) as input"""
         self.map = []
         self.editor_map = editor_map
         self.game = game
@@ -15,6 +17,7 @@ class Level(object):
         self.directions = {'N': 1, 'S': -1, 'E': 2, 'W': -2}
 
     def load_map(self):
+        """Loads the map from map.txt with the given level number"""
         if not self.editor_map:
             parser = self.get_parser()
             self.tile_set = parser.get('level{0}'.format(self.level), 'tileset')
@@ -32,6 +35,7 @@ class Level(object):
             self.tile_set = random.choice(available_tilesets)
 
     def number_of_levels(self):
+        """Calculates the number of levels in map.txt"""
         parser = self.get_parser()
         lvl_number = 0
         while True:
@@ -42,6 +46,7 @@ class Level(object):
         return lvl_number
 
     def get_parser(self, filename=os.path.join('data', 'map.txt')):
+        """Returns a ConfigParser parser which has loaded map.txt"""
         parser = ConfigParser.ConfigParser()
         parser.read(filename)
         return parser
@@ -50,49 +55,54 @@ class Level(object):
         self.tile_map = [[tile.Tile(self.game, x, y, col, self.check_neighbors(x, y)) for x, col in enumerate(row)] for y, row in enumerate(self.map)]
 
     def get_directions(self, x, y):
+        """Calculates which paths are available (are not walls) when the rat comes to an intersection"""
         available_paths = []
         x = x / tile.tile_size
         y = y / tile.tile_size
-        if not self.is_wall(x, y - 1) and y - 1 > 0: #Kollar om tilen rakt ovanför, till vänster, höger eller rakt nedan
-            available_paths.append(self.directions['N'])                                                    # är en vägg. I sådana fall, lägg inte till den riktningen
-        if not self.is_wall(x, y + 1) and y + 1 < 20: #i listan
-            available_paths.append(self.directions['S'])
-        if not self.is_wall(x + 1, y) and x + 1 < 20:
+        if not self.is_wall(x, y - 1) and y - 1 > 0: #North
+            available_paths.append(self.directions['N'])  
+        if not self.is_wall(x, y + 1) and y + 1 < 20: #South
+            available_paths.append(self.directions['S']) 
+        if not self.is_wall(x + 1, y) and x + 1 < 20: #East
             available_paths.append(self.directions['E'])
-        if not self.is_wall(x - 1, y) and x - 1 > 0:
+        if not self.is_wall(x - 1, y) and x - 1 > 0: #West
             available_paths.append(self.directions['W'])
         return available_paths
 
-    def find_lanes(self, rect): #Kollar vilka rader och kolumner som explosionen kan expandera i.
-        tile_x = rect.x / tile.tile_size #Bombens x och y-koordinater divideras med tile_size (32) för få rätt index i self.map
+    def find_lanes(self, rect): 
+        """Returns which tiles the explosion can expand to. The explosion will expand in a direction until it hits a wall"""
+        tile_x = rect.x / tile.tile_size #Convert bomb coordinates to indices in self.map 
         tile_y = rect.y / tile.tile_size
-        available_lanes = [rect] #Den tile som bomben exploderade på läggs först till
-        directions = {'Up': (0, 1), 'Right': (1, 0), 'Down': (0, -1), 'Left': (-1, 0)} #directions gör det lätt att öka indexet i self.map för att gå vidare till nästa kolumn eller rad
-        for direction in directions.values(): #För varje riktning
+        available_lanes = [rect] #Add the tile in which the bomb was placed 
+        directions = {'Up': (0, 1), 'Right': (1, 0), 'Down': (0, -1), 'Left': (-1, 0)} 
+        for direction in directions.values(): 
             while True:
-                tile_y += direction[1] #Gå vidare till nästa tile i den riktningen
+                tile_y += direction[1] 
                 tile_x += direction[0]
-                if not self.is_wall(tile_x, tile_y): #Om det inte är en vägg, lägg till tilen
+                if not self.is_wall(tile_x, tile_y): 
                     available_lanes.append(pygame.Rect(tile_x * tile.tile_size, tile_y * tile.tile_size, rect.h, rect.w))
-                else:
-                    tile_x = rect.x / tile.tile_size #Annars så kan explosionen inte expandera mer i den riktningen, så återställ index och hoppa ur while-loopen
+                else: #If a wall is hit, reset the tile coordinates and try the next direction (unless all directions have been tried)
+                    tile_x = rect.x / tile.tile_size 
                     tile_y = rect.y / tile.tile_size
                     break
         return available_lanes
 
-    def get_tile(self, x, y): #Returnerar typen av tile på positionen
+    def get_tile(self, x, y): 
+        """Returns the tile in the given position"""
         if 0 <= x <= 20 and 0 <= y <= 20:
             return self.map[y][x]
 
     def check_neighbors(self, x, y):
+        """Returns an integer which represents which path tile should be drawn in the given position based on which neighbor tiles the given tile has"""
         if not self.is_wall(x, y):
             directions = {'N': (0, -1), 'E': (1, 0), 'W': (-1, 0), 'S': (0, 1)}
             available_dirs = []
-            for dir in directions.keys():
+            for dir in directions.keys(): #Add all neighboring path tile directions to available_dirs
                 neigh_x = x + directions[dir][0]
                 neigh_y = y + directions[dir][1]
                 if not self.is_wall(neigh_x, neigh_y):
                     available_dirs.append(dir)
+            #Based on the number of available directions and which directions, return the appropriate path tile number
             if len(available_dirs) == 1:
                 if 'S' in available_dirs:
                     return 0
@@ -129,7 +139,8 @@ class Level(object):
         else:
             return None
 
-    def is_wall(self, x, y): #Kollar om tilen är antingen är gräs eller blomma, dvs. en vägg
+    def is_wall(self, x, y): 
+        """Returns true if the tile in the given position is a wall, else false"""
         if 0 <= x <= 20 and 0 <= y <= 20:
             if self.get_tile(x, y) == '#' or self.get_tile(x, y) == '*': return True
             else: return False

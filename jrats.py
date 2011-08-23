@@ -13,9 +13,7 @@ from collections import deque
 
 #TODO       powerups
 #TODO       bättre lösning för att spara banor
-#Då har din GameStateStack en stack av GameState-klasser (de klasser du har i jrats.py
-#                      just nu), och så innehåller den en loop som kallar Update() och Draw() på det objekt
-#                      som ligger längst upp på stacken.
+#TODO       vapen till leveleditor
 
 black = (   0, 0, 0)
 white = ( 255, 255, 255)
@@ -33,15 +31,18 @@ pygame.init()
 pygame.font.init() #initierar textutskrift
 size = [800, 672]
 screen = pygame.display.set_mode(size)
-pygame.display.set_caption("j&R")
+pygame.display.set_caption("jRats")
 clock = pygame.time.Clock()
 
 class GameStateStack(object):
+    """Keeps track of game states and runs the states' event, update and draw methods"""
     def __init__(self):
+        #Initializes the game stack and pushes the main menu state to the stack
         self.stack = []
         self.stack.append(MainMenu(self))
 
     def main(self):
+        #Runs the basic methods of the last item on the stack
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -51,30 +52,38 @@ class GameStateStack(object):
             self.stack[-1].draw()
 
     def push(self, state):
+        """Pushes a state to the stack"""
         self.stack.append(state)
 
     def pop(self, **kwargs):
+        """Pops a state from the stack"""
         self.stack.pop()
+        #Handles values returned by a popped game state
         if kwargs:
             self.stack[-1].recieve_values(**kwargs)
 
 
 class GameState(object):
-    
+    """Base class for game states"""
+
     def update(self):
+        """Empty base class method"""
         pass
 
     def draw(self):
+        """Method for filling the screen with black and drawing text objects"""
         screen.fill(black)
         self.draw_text()
         pygame.display.flip()
 
     def handle_event(self, event):
+        """Handles mouse clicks and sends the mouse position to the handle_mouse method of the child class"""
         if event.type == pygame.MOUSEBUTTONDOWN:
             self.handle_mouse(event.pos[0], event.pos[1])
 
 
 class MainMenu(GameState):
+    """The main menu state gives the user access to the other available game states"""
     def __init__(self, stack):
         self.stack = stack
         self.menu_font = pygame.font.Font(None, 40)
@@ -83,14 +92,14 @@ class MainMenu(GameState):
                           'Options': {'text': 'Options', 'x': 630, 'y': 400},
                           'Help': {'text': 'Help', 'x': 630, 'y': 450},
                           'Exit': {'text': 'Exit', 'x': 630, 'y': 500}}
-
-        self.done = False
+        #Default options
         self.options = {'Difficulty': 'Normal', 'Music': 'No', 'Music volume': '0.5', 'Sound volume': '0.5'}
         self.image = pygame.image.load(os.path.join('data', 'images', 'main.png')).convert_alpha()
         self.rect = self.image.get_rect()
         self.initialize_text()
 
     def initialize_text(self):
+        """Gets a render and rect for every item in menu_text"""
         for menu_item in self.menu_text.values():
             render = self.menu_font.render(menu_item['text'], True, white)
             render_rect = render.get_rect(x=menu_item['x'], y=menu_item['y'])
@@ -98,29 +107,30 @@ class MainMenu(GameState):
             menu_item['rect'] = render_rect
 
     def draw_text(self):
+        """Draws the items in menu_text"""
         for menu_item in self.menu_text.values():
             screen.blit(menu_item['render'], menu_item['rect'])
 
     def draw(self):
+        """Draws the image and text"""
         screen.fill(black)
         screen.blit(self.image, self.rect)
         self.draw_text()
         pygame.display.flip()
 
     def recieve_values(self, **kwargs):
+        """Handles the options returned from the options state"""
         for key, value in kwargs.items():
-            if key == 'score':
-                self.score = value
-            elif key == 'options':
+            if key == 'options':
                 self.options = value
 
     def handle_mouse(self, mouse_x, mouse_y):
+        """Checks if user clicked on an item in the menu and pushes the corresponding state to the game state stack"""
         for menu_item in self.menu_text.values():
             rect = menu_item['rect']
             if rect.collidepoint(mouse_x, mouse_y):
                 if menu_item['text'] == 'Play game':
                     self.stack.push(Game(self.options, self.stack))
-#                    self.stack.push(GameOverScreen(score, self.stack))
                 elif menu_item['text'] == 'Level editor':
                     self.stack.push(LevelEditor(self.options, self.stack))
                 elif menu_item['text'] == 'Options':
@@ -131,19 +141,20 @@ class MainMenu(GameState):
                     sys.exit()
                     
 class HelpScreen(GameState):
+    """Help screen game state"""
     def __init__(self, stack):
         self.stack = stack
         self.help_font = pygame.font.Font(None, 20)
         self.help_strings = ['The objective of jRats is to kill all the rats on the level. The game is over if the rat population reaches 50.',
                           'You have a number of weapons to help you fight the rats, which are randomly generated and given to you.',
                           '',
-                          'Stop sign - ',
-                          'Poison -',
-                          'Terminator rat -',
-                          'Bomb -',
-                          'Gender change -',
-                          'Nuke -',
-                          'Toxic gas -']
+                          'Stop sign - Makes the rat change direction. Disappears after five hits.',
+                          'Poison - Kills one rat before disappering.',
+                          'Terminator rat - Acts like a regular rat, but will kill five rats upon collision.',
+                          'Bomb - The bomb will explode five seconds after being placed, and the explosion will kill everything in its way.',
+                          'Gender change - Will change the gender of one rat. Will also turn terminator rats into a regular rat.',
+                          'Nuke - Sterilizes all rats who come in contact with the radiation. Sterilized rats can\'t have babies.',
+                          'Toxic waste - All rats that come in contact with the toxic gas die.']
         self.back_button = {}
         self.initialize_text()
 
@@ -168,6 +179,7 @@ class OptionsScreen(GameState):
         self.stack = stack
         self.choices = choices
         self.options_font = pygame.font.Font(None, 20)
+        #All options have a descriptive label, as well as a sub-dictionary of the available choices
         self.options_text = {'Difficulty':
                                  {'text': 'Difficulty:', 'x': 100, 'y': 100, 'option': False, 'choices':
                                     {
@@ -256,7 +268,9 @@ class OptionsScreen(GameState):
 
 
 class GameOverScreen(GameState):
+    """The screen shown when the player either wins or loses"""
     def __init__(self, score, stack):
+        #Takes the score from the gaming session as input
         self.stack = stack
         self.gameover_font = pygame.font.Font(None, 50)
         self.gameover_text = {'Total': {'text': 'Total number of rats killed:', 'x': 200, 'y': 200},
@@ -281,6 +295,7 @@ class GameOverScreen(GameState):
 
 
 class LevelEditor(GameState):
+    """Level editor for creating, testing and saving custom maps"""
     def __init__(self, options, stack):
         self.stack = stack
         self.map = []
@@ -308,6 +323,7 @@ class LevelEditor(GameState):
         self.map = [['.' if x != 0 and y != 0 and x != 20 and y != 20 else '#' for x in range(21)] for y in range(21)]
 
     def save(self):
+        #Saves the map to a textfile, which the user must manually add to the map.txt
         save_file = open(os.path.join('data', 'temp_map.txt'), 'w+')
         for row in self.map:
             save_file.write(''.join(row) + '\n')
@@ -384,25 +400,25 @@ class Menu_items(pygame.sprite.DirtySprite): #Skapar bilderna i menyn
 class Game(GameState):
     def __init__(self, options, stack, editor_map = None):
         self.stack = stack
-        pygame.mixer.init() #Initierar ljuder
-        self.graphics = {} #Kommer innehålla all grafik
-        self.sounds = {}   #Och allt ljud
+        pygame.mixer.init() 
+        self.graphics = {} 
+        self.sounds = {}   
         self.options = options
-        self.initialize_graphics() #Metod för att ladda in all grafik
-        self.initialize_sounds()   #Metod för att ladda in allt ljud
+        self.initialize_graphics() 
+        self.initialize_sounds()   
         self.score = 0
-        self.music_event = pygame.USEREVENT
+        self.music_event = pygame.USEREVENT 
         if self.options['Music'] == 'Yes':
             self.initialize_music()
         self.editor_map = editor_map
-        self.reset()               #reset innehåller alla som ska återställas vid omstart eller ny bana
-        self.board_width = self.board_height = 20 * tile.tile_size #Brädet är 21 tiles högt och brett, och varje tile är 32 x 32 pixlar
+        self.reset()               
+        self.board_width = self.board_height = 20 * tile.tile_size #The board is 21 tiles high and wide, and each tile is 32 x 32
 
     def reset(self, level=1):
-        self.menu_items = {} #Ett dictionary som kommer innehålla information om vapenikonerna i menyn
-        self.level = level   #Vilken nivå
-        self.initialize_menu() #Initiera menyn genom att tilldela menu_items värden
-        self.male_rat_sprites = pygame.sprite.LayeredDirty() #Skapa spritegroups (för dirtysprites) för de olika sprite:arna
+        self.menu_items = {} #For the weapon icons in the menu
+        self.level = level   
+        self.initialize_menu() 
+        self.male_rat_sprites = pygame.sprite.LayeredDirty() 
         self.female_rat_sprites = pygame.sprite.LayeredDirty()
         self.child_rat_sprites = pygame.sprite.LayeredDirty()
         self.weapon_sprites = pygame.sprite.LayeredDirty()
@@ -414,19 +430,20 @@ class Game(GameState):
         self.create_level() #Skapar banan
         self.initial_population()
         self.population_count = {'M': 0, 'F': 0}
-        self.male_ui_rect = pygame.Rect(700, 650, 50, 0) #Initierar mätaren för manliga råttor
-        self.female_ui_rect = pygame.Rect(700, 650, 50, 0) #och mätaren för kvinnliga råttorr
-        self.population_frame = pygame.Rect(700, 650, 50, -200) #Ramen runt mätaren
-        self.menu_font = pygame.font.Font(None, 18) #Initierar texten i menyn
+        self.male_ui_rect = pygame.Rect(700, 650, 50, 0) #The population counter graphic
+        self.female_ui_rect = pygame.Rect(700, 650, 50, 0) 
+        self.population_frame = pygame.Rect(700, 650, 50, -200) #The population counter graphic frame
+        self.menu_font = pygame.font.Font(None, 18) 
         self.win = False
-        self.active_rectangle = pygame.Rect(0, 0, 0, 0) #Rektangeln som ritas ut runt det aktiva vapnet
-        self.active_weapon = None #Inget vapen är aktivt i början
-        self.last_generated_weapon = pygame.time.get_ticks() #När ett vapen senast skapades
-        self.generate_weapons() #Kör metoden för att generera vapen
+        self.active_rectangle = pygame.Rect(0, 0, 0, 0) #Rectangle drawn around the active weapon
+        self.active_weapon = None 
+        self.last_generated_weapon = pygame.time.get_ticks() 
+        self.generate_weapons() 
         self.collision_time = pygame.time.get_ticks()
 
 
     def initialize_music(self):
+        """Imports the music files in the music directory and add them to a playlist"""
         self.music = deque()
         file_types = ['*.mp3', '*.ogg']
         for file_type in file_types:
@@ -437,6 +454,7 @@ class Game(GameState):
         self.handle_music()
 
     def handle_music(self):
+        """Runs when the music_event is generated. Loads the next song in the playlist, sets the volume and plays the song"""
         pygame.mixer.music.load(self.music[0])
         pygame.mixer.music.set_volume(float(self.options['Music volume']))
         pygame.mixer.music.play()
@@ -444,6 +462,7 @@ class Game(GameState):
         self.music.rotate()
 
     def initial_population(self):
+        """Initializes the initial rat population, which is based on the difficulty level"""
         difficulty = self.options['Difficulty']
         if difficulty == 'Easy':
             number_of_rats = 5
@@ -453,16 +472,18 @@ class Game(GameState):
             number_of_rats = 15
         for i in range(number_of_rats):
             x = y = 0
-            while self.leveltest.is_wall(x, y): #Så länge som startposition är en vägg
-                x, y = random.randrange(21), random.randrange(21) #Slumpa fram nya index
-            x *= tile.tile_size #Omvanlda koordinaterna från index i map-arrayen till koordinater
+            while self.leveltest.is_wall(x, y): #Keep generating coordinates until the position is not a wall
+                x, y = random.randrange(21), random.randrange(21) 
+            x *= tile.tile_size 
             y *= tile.tile_size
             self.create_rat(x, y, isAdult=True)
 
     def get_number_of_levels(self):
+        """Gets the number of levels from the level instance"""
         self.num_levels = self.leveltest.number_of_levels()
 
-    def create_level(self): #Skapa en instans av Level, ladda kartan, rita ut blommor
+    def create_level(self):
+        """Create an instance of the level class, and loads the map and tileset"""
         self.leveltest = level.Level(self.level, self, self.editor_map)
         if not self.num_levels:
             self.get_number_of_levels()
@@ -476,12 +497,14 @@ class Game(GameState):
             print ''.join(row)
 
     def load_tileset(self):
+        """Get the current tileset from the level instance and load the graphics"""
         self.tileset = self.leveltest.tile_set
         self.graphics['Path'] = [pygame.image.load(os.path.join('data', 'images', self.tileset, '{0}.png'.format(i))).convert_alpha() for i in range(15)]
         self.graphics['Wall'] = [pygame.image.load(tile_path) for tile_path in glob.glob(os.path.join('data', 'images', self.tileset, 'wall*.png'))]
         self.graphics['Decorations'] = [pygame.image.load(tile_path) for tile_path in glob.glob(os.path.join('data', 'images', self.tileset, 'decoration*.png'))]
 
-    def initialize_graphics(self): #Ladda in all grafik
+    def initialize_graphics(self):
+        """Load all sprites"""
         self.graphics['Stop sign'] = pygame.image.load(os.path.join('data', 'images', 'stop.png')).convert_alpha()
         self.graphics['Poison'] = pygame.image.load(os.path.join('data', 'images', 'poison.png')).convert_alpha()
         self.graphics['Male rat'] = pygame.image.load(os.path.join('data', 'images', 'male.png')).convert_alpha()
@@ -497,7 +520,8 @@ class Game(GameState):
         self.graphics['Gas'] = pygame.image.load(os.path.join('data', 'images', 'gas.png')).convert_alpha()
         self.graphics['Gas source'] = pygame.image.load(os.path.join('data', 'images', 'gas_source.png')).convert_alpha()
 
-    def initialize_sounds(self): #ladda in allt ljud
+    def initialize_sounds(self):
+        """Load all sounds"""
         self.sounds['Nuke'] = pygame.mixer.Sound(os.path.join('data', 'sounds', 'nuke.wav'))
         self.sounds['Mate'] = pygame.mixer.Sound(os.path.join('data', 'sounds', 'mate.wav'))
         self.sounds['Explosion'] = pygame.mixer.Sound(os.path.join('data','sounds', 'explosion.wav'))
@@ -510,12 +534,14 @@ class Game(GameState):
         self.set_volume()
 
     def set_volume(self):
+        """Sets the volume based on the user's choice"""
         for sound in self.sounds:
             self.sounds[sound].set_volume(float(self.options['Sound volume']))
 
     def initialize_menu(self):
-        self.menu_sprites = pygame.sprite.LayeredDirty() #Alla menysprites läggs in i en spritegroup
-        self.menu_items['Stop sign'] = {'x': 700, 'y': 120, 'amount': 100} #Alla vapen i menyn får ett x och y-värde, och hur stort antal av det vapnet som användaren har
+	"""Assign (x,y) values and set the initial amount to every item in the menu, then add to a spritegroup."""
+        self.menu_sprites = pygame.sprite.LayeredDirty() 
+        self.menu_items['Stop sign'] = {'x': 700, 'y': 120, 'amount': 100} 
         self.menu_items['Poison'] = {'x': 700, 'y': 160, 'amount': 100}
         self.menu_items['Terminator'] = {'x': 700, 'y': 200, 'amount': 100}
         self.menu_items['Bomb'] = {'x': 700, 'y': 240, 'amount': 100}
@@ -524,17 +550,19 @@ class Game(GameState):
         self.menu_items['Nuke'] = {'x': 700, 'y': 360, 'amount': 100}
         self.menu_items['Gas source'] = {'x': 700, 'y': 400, 'amount': 100}
         for name, coords in self.menu_items.iteritems():
-            self.menu_sprites.add(Menu_items(self, name, coords['x'], coords['y'])) #Skapa sprites av alla vapen och lägg till i spritegroupen
+            self.menu_sprites.add(Menu_items(self, name, coords['x'], coords['y'])) 
 
     def generate_weapons(self):
-        if pygame.time.get_ticks() - self.last_generated_weapon > random.randint(2000, 5000): #Mellan var 3:e och var 7:e sekunder, skapa ett slumpat vapen
+	"""Generate a random weapon every 2-5 seconds"""
+        if pygame.time.get_ticks() - self.last_generated_weapon > random.randint(2000, 5000): 
             self.menu_items[random.choice(self.menu_items.keys())]['amount'] += 1
             self.last_generated_weapon = pygame.time.get_ticks()
             self.play_sound('Ding')
 
     def get_dirty_tiles(self, obj, x, y):
+	"""Finds all the tiles that rats currently are occupying"""
         self.dirty_tiles.empty()
-        if isinstance(obj, rat.Rat) and obj.direction: #kolla direction utifall råttan skulle vara fast i en enskild tile
+        if isinstance(obj, rat.Rat) and obj.direction: #Rats without a direction are stuck on a single tile. Terminator rats are also rat instances.
             if obj.direction == 1: #North
                 current_x = x - (x % 32)
                 current_y = y - (y % 32)
@@ -561,25 +589,24 @@ class Game(GameState):
                 self.dirty_tiles.add(tile1)
             if not self.dirty_tiles.has(tile2):
                 self.dirty_tiles.add(tile2)
-        elif isinstance(obj, weapons.Nuke):
+        elif isinstance(obj, weapons.Nuke): #Nuke requires a special case because the radiation sprite occupies nine tiles
             for tile_y in range(y - 32, y + 64, 32):
                 for tile_x in range(x - 32, x + 64, 32):
                     tile = self.leveltest.tile_map[tile_y / 32][tile_x / 32]
                     if not self.dirty_tiles.has(tile):
                         self.dirty_tiles.add(tile)
-        else:
+        else: #For weapons and stationary rats, which never move
             x = x - (x % 32)
             y = y - (x % 32)
             tile = self.leveltest.tile_map[y / 32][x / 32]
             if not self.dirty_tiles.has(tile):
                 self.dirty_tiles.add(tile)
         
-
     def update_sprites(self):
-        self.dirty_tiles.empty()
-        self.population_count['M'] = 0 #Återställ räkningen av råttor
+	"""Update each sprite, get dirty tiles and get population count"""
+        self.population_count['M'] = 0 
         self.population_count['F'] = 0
-        for sprite in self.male_rat_sprites: #För alla råttor, kör deras update-metod och öka på räkningen
+        for sprite in self.male_rat_sprites:
             sprite.update()
             self.population_count['M'] += 1
             self.get_dirty_tiles(sprite, sprite.rect.x, sprite.rect.y)
@@ -591,30 +618,32 @@ class Game(GameState):
             sprite.update()
             self.population_count[sprite.gender] += 1
             self.get_dirty_tiles(sprite, sprite.rect.x, sprite.rect.y)
-        for sprite in self.weapon_sprites: #För varje vapen
-            sprite.update() #Kör deras update-metod
+        for sprite in self.weapon_sprites: 
+            sprite.update() 
             self.get_dirty_tiles(sprite, sprite.rect.x, sprite.rect.y)
-            if sprite.name == 'Bomb' and sprite.exploded: #Om vapnet är en bomb, och det har exploderat
+            if sprite.name == 'Bomb' and sprite.exploded: 
                 self.play_sound('Explosion')
-                explosion_rects = self.leveltest.find_lanes(sprite.rect) #Hitta alla rutor som explosionen kan expandera till
+                explosion_rects = self.leveltest.find_lanes(sprite.rect) 
                 for explosion_rect in explosion_rects:
-                    self.weapon_sprites.add(weapons.Explosion(self, explosion_rect.x, explosion_rect.y)) #Skapa explosionssprites på dessa rutor
+                    self.weapon_sprites.add(weapons.Explosion(self, explosion_rect.x, explosion_rect.y)) 
 
 
-    def draw_ui(self): #Ritar ut användarinterfacet
-        self.male_ui_rect.h = -self.population_count['M'] * 4 #Höjden på mätaren som visar antal manliga råttor får höjden: antal manliga råttor * 5
-        pygame.draw.rect(screen, blue, self.male_ui_rect) #Rita ut mätaren
+    def draw_ui(self): 
+	"""Draws the population counter graphics and weapon icons"""
+        self.male_ui_rect.h = -self.population_count['M'] * 4 
+        pygame.draw.rect(screen, blue, self.male_ui_rect) 
         self.female_ui_rect.h = -self.population_count['F'] * 4
-        self.female_ui_rect.top = self.male_ui_rect.top + self.male_ui_rect.h #Mätaren för kvinnliga råttor ritas ut ovanför den manliga
+        self.female_ui_rect.top = self.male_ui_rect.top + self.male_ui_rect.h 
         pygame.draw.rect(screen, red, self.female_ui_rect)
-        pygame.draw.rect(screen, green, self.population_frame, 2) #Rita ut ramen runt mätarna
-        for icon in self.menu_sprites: #Rita ut alla ikoner i menyn
+        pygame.draw.rect(screen, green, self.population_frame, 2) 
+        for icon in self.menu_sprites: 
             screen.blit(icon.image, icon.rect)
-        if self.active_weapon: #Rita ut en rektangel runt det aktiva vapnet i menyn
+        if self.active_weapon: 
             pygame.draw.rect(screen, red, self.active_rectangle, 2)
 
 
-    def process_text(self): #Hanterar all text
+    def process_text(self): 
+	"""Updates and draws the ingame text"""
         text_items = {
             'Population': {'text': 'Number of rats: {0}'.format(self.population_count['M'] + self.population_count['F']), 'x': 680, 'y': 20},
             'Male population': {'text': 'Male: {0}'.format(self.population_count['M']), 'x': 680, 'y': 40},
@@ -627,18 +656,20 @@ class Game(GameState):
             render_rect = render.get_rect(x=text_item['x'], y=text_item['y'])
             screen.blit(render, render_rect)
 
-    def handle_mouse(self, mouse_x, mouse_y): #Hanterar musklick
+    def handle_mouse(self, mouse_x, mouse_y): 
+	"""Handles clicks on weapon icon or the map"""
         for icon in self.menu_sprites:
-            if icon.rect.collidepoint(mouse_x, mouse_y): #Kollar om användaren klickat på en ikon
-                if self.menu_items[icon.name]['amount'] > 0: #Om användaren har det vapnet
-                    self.active_weapon = icon.name           #Sätt vapnet som aktivt
-                    self.active_rectangle = pygame.Rect(icon.rect.x, icon.rect.y, 32, 32) #Och rita ut en rektangel runt vapnet
-        mouse_aligned_x = (mouse_x - mouse_x % tile.tile_size) #Anpassa positionen så den hamnar mitt över en tile
+            if icon.rect.collidepoint(mouse_x, mouse_y): 
+                if self.menu_items[icon.name]['amount'] > 0: 
+                    self.active_weapon = icon.name
+                    self.active_rectangle = pygame.Rect(icon.rect.x, icon.rect.y, 32, 32) 
+        mouse_aligned_x = (mouse_x - mouse_x % tile.tile_size) 
         mouse_aligned_y = (mouse_y - mouse_y % tile.tile_size)
-        if mouse_x <= self.board_width and mouse_y <= self.board_height and not self.leveltest.is_wall(mouse_x / tile.tile_size, mouse_y / tile.tile_size) and self.active_weapon: #Om musen är innanför spelplanen, och inte på en vägg, och det finns ett aktivt vapen
-            self.place_weapon(mouse_aligned_x, mouse_aligned_y) #Placera vapnet på spelplanen
+        if mouse_x <= self.board_width and mouse_y <= self.board_height and not self.leveltest.is_wall(mouse_x / tile.tile_size, mouse_y / tile.tile_size) and self.active_weapon: 
+            self.place_weapon(mouse_aligned_x, mouse_aligned_y) 
 
-    def place_weapon(self, mouse_x, mouse_y): #Placera vapnet på spelplanen
+    def place_weapon(self, mouse_x, mouse_y):
+	"""Places the active weapon on the map"""
         if self.active_weapon == 'Stop sign':
             self.weapon_sprites.add(weapons.StopSign(self, mouse_x, mouse_y)) #Lägg till vapnet i spritegroupen för vapen
         elif self.active_weapon == 'Poison':
@@ -661,9 +692,11 @@ class Game(GameState):
             self.active_weapon = None
 
     def play_sound(self, sound):
+	"""Plays the selected sound"""
         self.sounds[sound].play()
 
     def handle_event(self, event):
+	"""Handles all events"""
         if event.type == pygame.MOUSEBUTTONDOWN:
             self.handle_mouse(event.pos[0], event.pos[1])
         if event.type == self.music_event:
@@ -715,66 +748,74 @@ class Game(GameState):
 
 
     def game_over(self):
+	"""Handles game over condition"""
         pygame.mixer.music.stop()
         self.stack.pop()
         self.stack.push(GameOverScreen(self.score, self.stack))
 
-    def check_game_over(self): #testmetod
+    def check_game_over(self): 
+	"""Checks if population exceeds the limit (player lost) or if population is zero (player won)"""
         population = self.population_count['M'] + self.population_count['F']
         if population > 50:
             self.game_over()
         elif population <= 0:
             self.win = True
 
-    def create_rat(self, x=0, y=0, set_gender=None, isAdult=False, direction=None, sterile = False): #Metod för att skapa nya råttor (lite rörig just nu)
-        if not direction: #Om råttan inte har en riktning, måste vi placera den rakt över en tile så att en riktning kan beräknas
+    def create_rat(self, x=0, y=0, set_gender=None, isAdult=False, direction=None, sterile = False): 
+	"""Method for creating a new rat. Position, gender, age, direction and sterility can be set"""
+        if not direction: 
             x = x - (x % 32)
             y = y - (y % 32)
-        new_rat = rat.EnemyRat(self, self.leveltest, x, y, isAdult, gender=set_gender, direction=direction, sterile = sterile) #Skapa råttan
-        if not new_rat.adult: #Om det är ett barn
-            self.child_rat_sprites.add(new_rat) #Lägg till i gruppen för barnsprites
+        new_rat = rat.EnemyRat(self, self.leveltest, x, y, isAdult, gender=set_gender, direction=direction, sterile = sterile)
+        if not new_rat.adult: 
+            self.child_rat_sprites.add(new_rat) 
             self.play_sound('Birth')
         elif new_rat.gender == 'M':
             self.male_rat_sprites.add(new_rat)
         else:
             self.female_rat_sprites.add(new_rat)
 
-    def collisions(self): #kollisionsdetektering
-        mate_hit = pygame.sprite.groupcollide(self.female_rat_sprites, self.male_rat_sprites, False, False) #Kolla om några manliga och kvinnliga råttor kolliderar
+    def collisions(self): 
+	"""Handles all collisions"""
+	#Checks mating collisions, males -> females
+        mate_hit = pygame.sprite.groupcollide(self.female_rat_sprites, self.male_rat_sprites, False, False) 
         for female, males in mate_hit.iteritems():
             for male in males:
                 if female in self.female_rat_sprites and male in self.male_rat_sprites:
-                    if female.check_mate(male): #Om de gör det, så kör metoden för att kolla om råttan ska bli gravid
+                    if female.check_mate(male): 
                         self.play_sound('Mate')
 
+	#Checks weapons -> males
         weapon_male_hit = pygame.sprite.groupcollide(self.weapon_sprites, self.male_rat_sprites, False, False)
-        for weapon, males in weapon_male_hit.iteritems(): #Kolla om några manliga råttor kolliderar, och hantera kollisionen då
+        for weapon, males in weapon_male_hit.iteritems(): 
             for male in males:
                 if weapon in self.weapon_sprites and male in self.male_rat_sprites:
                     weapon.handle_collision(male)
 
-
-        weapon_female_hit = pygame.sprite.groupcollide(self.weapon_sprites, self.female_rat_sprites, False, False) #Kvinnliga -> vapen
+	#Checks weapons -> females
+        weapon_female_hit = pygame.sprite.groupcollide(self.weapon_sprites, self.female_rat_sprites, False, False) 
         for weapon, females in weapon_female_hit.iteritems():
             for female in females:
                 if weapon in self.weapon_sprites and female in self.female_rat_sprites:
                     weapon.handle_collision(female)
 
-        weapon_child_hit = pygame.sprite.groupcollide(self.weapon_sprites, self.child_rat_sprites, False, False) #Barn ->
+	#Checks weapons -> children
+        weapon_child_hit = pygame.sprite.groupcollide(self.weapon_sprites, self.child_rat_sprites, False, False)
         for weapon, children in weapon_child_hit.iteritems():
             for child in children:
                 if weapon in self.weapon_sprites and child in self.child_rat_sprites:
                     weapon.handle_collision(child)
                     
-        weapon_weapon_hit = pygame.sprite.groupcollide(self.weapon_sprites, self.weapon_sprites, False, False) #Vapen -> Vapen
+        #Checks weapons -> weapons
+        weapon_weapon_hit = pygame.sprite.groupcollide(self.weapon_sprites, self.weapon_sprites, False, False) 
         for weapon1, weapons2 in weapon_weapon_hit.iteritems():
             for weapon2 in weapons2:
-                if weapon1 is weapon2 or weapon1 not in self.weapon_sprites or weapon2 not in self.weapon_sprites: #Om det är samma objekt, fortsätt
+                if weapon1 is weapon2 or weapon1 not in self.weapon_sprites or weapon2 not in self.weapon_sprites: 
                     continue
-                if isinstance(weapon1, weapons.Explosion) and not isinstance(weapon2, weapons.Explosion) and not isinstance(weapon2, weapons.GasSource): #Om första vapnet är en explosion, och andra vapnet inte är det, hantera det (ta bort andra vapnet)
+                if isinstance(weapon1, weapons.Explosion) and not isinstance(weapon2, weapons.Explosion) and not isinstance(weapon2, weapons.GasSource): 
                     weapon1.handle_collision(weapon2)
                 elif isinstance(weapon1, weapons.Weapons) and isinstance(weapon2, weapons.Terminator):
-                    if isinstance(weapon1, weapons.ChangeGender): #Om ena vapnet är könsbyte och andra är terminator, gör om terminatorn till vanlig
+                    if isinstance(weapon1, weapons.ChangeGender): 
                         gender = 'M' if weapon1.name == 'Change gender male' else 'F'
                         self.sounds['Change gender'].play()
                         self.create_rat(weapon2.rect.x, weapon2.rect.y, isAdult=True, direction=weapon2.direction, set_gender=gender)

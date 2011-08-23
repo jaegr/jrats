@@ -5,8 +5,10 @@ import pygame
 tile_size = 32
 
 class Tile(pygame.sprite.DirtySprite):
+    """Class for handling tiles"""
 
     def __init__(self, game, x, y, tile, tile_number):
+        """Takes game instance, (x, y) coordinates, tile symbol and tile_number (0-14 or None) as input"""
         pygame.sprite.DirtySprite.__init__(self)
 
         self.dirty = 1
@@ -22,16 +24,18 @@ class Tile(pygame.sprite.DirtySprite):
         self.rect.y = self.y * tile_size
 
     def get_image(self):
+        """Sets the path image based on the name of the tile"""
         if self.name == 'Path':
             return self.game.graphics['Path'][self.tile_number]
         else:
-            if random.randint(1, 100) < 95:
+            if random.randint(1, 100) < 95: #5% of wall tiles should be decoration tiles
                 return random.choice(self.game.graphics['Wall'])
             else:
                 return random.choice(self.game.graphics['Decorations'])
 
 
     def get_name_from_tile(self):
+        """Sets name of tile based on the tile symbol"""
         if self.tile == '#':
             return 'Wall'
         elif self.tile == '.':
